@@ -3,10 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Nokia Retro Cricket 2006 - Fixed & Balanced</title>
+    <title>Nokia Retro Cricket 2006 - Polished Edition</title>
     <style>
         body {
-            background-color: #0f172a;
+            background-color: #0b0f19;
             font-family: 'Courier New', Courier, monospace;
             display: flex;
             flex-direction: column;
@@ -16,36 +16,39 @@
             margin: 0;
             color: #f8fafc;
         }
+        /* Sleek Modern-Retro Nokia Phone Shell */
         .phone-body {
-            background: #334155;
+            background: linear-gradient(135deg, #475569 0%, #1e293b 100%);
             padding: 25px;
-            border-radius: 40px;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.6), inset 0 2px 5px rgba(255,255,255,0.2);
-            border: 4px solid #475569;
-            width: 340px;
+            border-radius: 45px;
+            box-shadow: 0 25px 50px rgba(0,0,0,0.8), inset 0 2px 6px rgba(255,255,255,0.2);
+            border: 4px solid #64748b;
+            width: 330px;
             text-align: center;
         }
         .brand {
-            font-size: 14px;
+            font-size: 13px;
             font-weight: bold;
-            color: #94a3b8;
-            letter-spacing: 3px;
-            margin-bottom: 10px;
+            color: #cbd5e1;
+            letter-spacing: 4px;
+            margin-bottom: 12px;
             text-transform: uppercase;
         }
+        /* Crisp Monochrome LCD Screen */
         .lcd-screen {
-            background: #9ead86;
-            border: 6px solid #2b3822;
-            border-radius: 6px;
-            padding: 10px;
-            width: 300px;
-            height: 390px;
+            background: #9ead86; 
+            border: 5px solid #2b3822;
+            border-radius: 8px;
+            padding: 8px;
+            width: 296px;
+            height: 400px;
             box-sizing: border-box;
             display: flex;
             flex-direction: column;
             justify-content: space-between;
-            box-shadow: inset 0 0 10px rgba(0,0,0,0.4);
+            box-shadow: inset 0 0 12px rgba(0,0,0,0.5);
             position: relative;
+            overflow: hidden;
         }
         canvas {
             background: #8b9d71;
@@ -59,51 +62,58 @@
             font-weight: bold;
             display: flex;
             justify-content: space-between;
-            border-bottom: 1px dashed #2b3822;
+            border-bottom: 2px dashed #2b3822;
             padding-bottom: 4px;
+            background: rgba(139, 157, 113, 0.9);
         }
         .lcd-footer {
             font-size: 11px;
             color: #2b3822;
             font-weight: bold;
             text-align: center;
-            height: 22px;
+            height: 24px;
+            background: rgba(139, 157, 113, 0.9);
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
+        /* Tactile Retro Keypad */
         .keypad {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
             gap: 6px;
             margin-top: 15px;
-            padding: 0 5px;
+            padding: 0 4px;
         }
         .key {
-            background: #475569;
+            background: #334155;
             color: #fff;
             border: none;
             padding: 10px;
-            font-size: 14px;
+            font-size: 13px;
             font-weight: bold;
             border-radius: 6px;
             cursor: pointer;
-            box-shadow: 0 4px 0 #1e293b;
+            box-shadow: 0 4px 0 #0f172a;
             transition: 0.05s;
         }
         .key:active {
             transform: translateY(4px);
-            box-shadow: 0 0 0 #1e293b;
+            box-shadow: 0 0 0 #0f172a;
         }
         .key-action {
-            background: #10b981;
+            background: #059669;
             box-shadow: 0 4px 0 #047857;
-            font-size: 12px;
+            font-size: 11px;
+            grid-column: span 3;
         }
         .screen-overlay {
             position: absolute;
-            top: 10px;
-            left: 10px;
+            top: 8px;
+            left: 8px;
             width: 280px;
-            height: 370px;
-            background: rgba(158, 173, 134, 0.96);
+            height: 384px;
+            background: rgba(158, 173, 134, 0.97);
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -124,6 +134,7 @@
             color: #111;
             margin-bottom: 15px;
             width: 80%;
+            border-radius: 4px;
         }
     </style>
 </head>
@@ -137,14 +148,14 @@
         <!-- START / GAME OVER SCREEN -->
         <div id="overlay" class="screen-overlay">
             <h3 style="margin:0 0 5px 0;">🏏 RETRO CRICKET 2006</h3>
-            <p style="font-size:11px; margin:5px 0 15px 0; text-align:center;">
+            <p style="font-size:11px; margin:5px 0 15px 0; text-align:center; line-height: 1.4;">
                 <b>Controls:</b><br>
                 [1] Left Shot | [3] Right Shot<br>
                 [4] Lofted Drive | [6] Power Slog<br>
-                Time it well to clear the fielders!
+                Timing is everything!
             </p>
             <input type="text" id="player-name" placeholder="Batsman Name" maxlength="10" value="Legend">
-            <button class="key" style="background:#2b3822; color:#fff; width:100%; padding:10px;" onclick="startGame()">START INNINGS</button>
+            <button class="key" style="background:#2b3822; color:#fff; width:100%; padding:10px; font-size:14px;" onclick="startGame()">START INNINGS</button>
         </div>
 
         <!-- LCD HEADER -->
@@ -154,7 +165,7 @@
         </div>
 
         <!-- CANVAS GAME PITCH & OUTFIELD -->
-        <canvas id="gameCanvas" width="276" height="270"></canvas>
+        <canvas id="gameCanvas" width="280" height="270"></canvas>
 
         <!-- LCD FOOTER -->
         <div class="lcd-footer" id="comm-text">Choose shot [1, 3, 4, 6]!</div>
@@ -163,12 +174,12 @@
     <!-- RETRO KEYPAD -->
     <div class="keypad">
         <button class="key" onclick="playShot(1)">1<br><small>Left</small></button>
-        <button class="key" onclick="playShot(2)">2<br><small>Defend</small></button>
+        <button class="key" onclick="playShot(2)">2<br><small>Block</small></button>
         <button class="key" onclick="playShot(3)">3<br><small>Right</small></button>
         <button class="key" onclick="playShot(4)">4<br><small>Lofted</small></button>
         <button class="key" onclick="playShot(5)">5<br><small>Straight</small></button>
         <button class="key" onclick="playShot(6)">6<br><small>Power</small></button>
-        <button class="key key-action" style="grid-column: span 3;" onclick="playShot(5)">⚡ STRAIGHT DRIVE (5 / Space)</button>
+        <button class="key key-action" onclick="playShot(5)">⚡ STRAIGHT DRIVE (5 / Space)</button>
     </div>
 </div>
 
@@ -196,23 +207,25 @@
         wickets: 0,
         ball: 1,
         maxBalls: 6,
-        status: 'IDLE',
-        ballX: 138,
-        ballY: 30,
-        targetX: 138,
-        targetY: 30,
+        status: 'IDLE', // 'IDLE', 'BOWLING', 'FLYING'
+        ballX: 140,
+        ballY: 25,
+        targetX: 140,
+        targetY: 25,
         ballSpeedX: 0,
         ballSpeedY: 2.2,
         batSwinging: false,
         swingFrame: 0,
-        shotDirection: 5
+        shotDirection: 5,
+        popupText: '',
+        popupTimer: 0
     };
 
     let fielders = [
         { x: 45, y: 70, baseX: 45, baseY: 70, dir: 1 },
-        { x: 225, y: 70, baseX: 225, baseY: 70, dir: -1 },
-        { x: 100, y: 35, baseX: 100, baseY: 35, dir: 1 },
-        { x: 175, y: 35, baseX: 175, baseY: 35, dir: -1 }
+        { x: 235, y: 70, baseX: 235, baseY: 70, dir: -1 },
+        { x: 100, y: 32, baseX: 100, baseY: 32, dir: 1 },
+        { x: 180, y: 32, baseX: 180, baseY: 32, dir: -1 }
     ];
 
     let playerName = "Legend";
@@ -230,15 +243,17 @@
             ball: 1,
             maxBalls: 6,
             status: 'IDLE',
-            ballX: 138,
-            ballY: 30,
-            targetX: 138,
-            targetY: 30,
+            ballX: 140,
+            ballY: 25,
+            targetX: 140,
+            targetY: 25,
             ballSpeedX: 0,
             ballSpeedY: 2.2,
             batSwinging: false,
             swingFrame: 0,
-            shotDirection: 5
+            shotDirection: 5,
+            popupText: '',
+            popupTimer: 0
         };
         
         document.getElementById('score-val').innerText = '0';
@@ -255,9 +270,9 @@
             return;
         }
         gameState.status = 'BOWLING';
-        gameState.ballX = 138;
-        gameState.ballY = 30;
-        gameState.ballSpeedY = 2.0 + Math.random() * 1.2; // Balanced speed
+        gameState.ballX = 140;
+        gameState.ballY = 25;
+        gameState.ballSpeedY = 2.0 + Math.random() * 1.2;
         document.getElementById('ball-val').innerText = gameState.ball;
         document.getElementById('comm-text').innerText = "Bowler running in...";
         playBeep(300, 'triangle', 0.1);
@@ -271,24 +286,19 @@
         gameState.swingFrame = 12;
         playBeep(800, 'square', 0.1);
 
-        let batsmanY = 230;
+        let batsmanY = 220;
         let timingDiff = Math.abs(gameState.ballY - batsmanY);
 
-        // BALANCED TIMING WINDOWS (Easier to hit boundaries now!)
-        if (timingDiff < 15) {
-            // Perfect Timing -> Boundary (4 or 6)
-            processBattingContact(true);
-        } else if (timingDiff < 28) {
-            // Good Timing -> 1 or 2 runs
-            processBattingContact(false);
-        } else if (timingDiff < 38) {
-            // Defended
+        if (timingDiff < 16) {
+            processBattingContact(true); // Perfect timing -> boundary
+        } else if (timingDiff < 30) {
+            processBattingContact(false); // Good timing -> 1-2 runs
+        } else if (timingDiff < 40) {
             document.getElementById('comm-text').innerText = "Defended safely (0)";
             gameState.status = 'IDLE';
             playBeep(400, 'sawtooth', 0.1);
             queueNextBall();
         } else {
-            // Miss -> Bowled!
             gameState.wickets++;
             document.getElementById('comm-text').innerText = "BOWLED! Timber rattled! ☝️";
             gameState.status = 'IDLE';
@@ -301,25 +311,26 @@
     }
 
     function processBattingContact(isPerfect) {
-        let targetX = 138;
-        let targetY = 20;
+        let targetX = 140;
+        let targetY = 10;
         let runs = 1;
 
+        // Direction mapping with explicit targets *beyond* or *on* the boundary oval
         if (gameState.shotDirection === 1) {
-            targetX = 35 + Math.random() * 25;  // Left boundary (Cover)
-            targetY = 80 + Math.random() * 40;
+            targetX = 15;   // Crosses left boundary
+            targetY = 135;
             runs = isPerfect ? 4 : 1;
         } else if (gameState.shotDirection === 3) {
-            targetX = 215 + Math.random() * 25; // Right boundary (Midwicket)
-            targetY = 80 + Math.random() * 40;
+            targetX = 265;  // Crosses right boundary
+            targetY = 135;
             runs = isPerfect ? 4 : 1;
         } else if (gameState.shotDirection === 4 || gameState.shotDirection === 6) {
-            targetX = 90 + Math.random() * 96;  // Deep straight boundary
-            targetY = 20 + Math.random() * 15;  // Hits the rope!
+            targetX = 140 + (Math.random() * 60 - 30);
+            targetY = -10;  // Flies cleanly past the top boundary rope!
             runs = isPerfect ? 6 : 2;
         } else {
-            targetX = 128 + Math.random() * 20; // Straight drive
-            targetY = 20;
+            targetX = 140;
+            targetY = 12;   // Straight boundary hit
             runs = isPerfect ? 4 : 2;
         }
 
@@ -328,7 +339,7 @@
         if (isPerfect && (gameState.shotDirection === 4 || gameState.shotDirection === 6)) {
             fielders.forEach(f => {
                 let distToFielder = Math.hypot(f.x - targetX, f.y - targetY);
-                if (distToFielder < 25) {
+                if (distToFielder < 28) {
                     caughtOut = true;
                 }
             });
@@ -352,6 +363,11 @@
         }
 
         gameState.score += runs;
+        
+        // Trigger popup text
+        gameState.popupText = `+${runs}`;
+        gameState.popupTimer = 40;
+
         launchBallFlight(targetX, targetY, runs);
         if (runs === 6) {
             playBeep(1200, 'square', 0.3);
@@ -369,15 +385,15 @@
         let dy = targetY - gameState.ballY;
         let dist = Math.sqrt(dx*dx + dy*dy);
         
-        gameState.ballSpeedX = (dx / dist) * 4.5;
-        gameState.ballSpeedY = (dy / dist) * 4.5;
+        gameState.ballSpeedX = (dx / dist) * 5;
+        gameState.ballSpeedY = (dy / dist) * 5;
 
         if (runs === 6) {
             document.getElementById('comm-text').innerText = "MAXIMUM! OVER THE ROPE! 🚀";
         } else if (runs === 4) {
             document.getElementById('comm-text').innerText = "FOUR RUNS! Boundary! 💥";
         } else {
-            document.getElementById('comm-text').innerText = `Good placement! +${runs} run`;
+            document.getElementById('comm-text').innerText = `Good shot! +${runs} run`;
         }
     }
 
@@ -404,8 +420,8 @@
         overlay.innerHTML = `
             <h3 style="margin:0 0 5px 0;">INNINGS OVER!</h3>
             <p style="font-size:12px; margin:5px 0;"><b>${playerName}</b></p>
-            <p style="font-size:14px; color:#b91c1c; font-weight:bold; margin:5px 0;">Final Score: ${gameState.score} / ${gameState.wickets}</p>
-            <button class="key" style="background:#2b3822; color:#fff; width:100%; padding:8px; margin-top:10px;" onclick="startGame()">PLAY AGAIN</button>
+            <p style="font-size:15px; color:#b91c1c; font-weight:bold; margin:8px 0;">Final Score: ${gameState.score} / ${gameState.wickets}</p>
+            <button class="key" style="background:#2b3822; color:#fff; width:100%; padding:10px; font-size:14px; margin-top:10px;" onclick="startGame()">PLAY AGAIN</button>
         `;
         playBeep(200, 'sawtooth', 0.5);
     }
@@ -414,41 +430,44 @@
         ctx.fillStyle = '#8b9d71';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        // Boundary line oval
+        // Oval Boundary Line (Classic Oval Outfield)
         ctx.strokeStyle = '#2b3822';
-        ctx.lineWidth = 2;
+        ctx.lineWidth = 2.5;
         ctx.beginPath();
-        ctx.ellipse(138, 135, 126, 120, 0, 0, Math.PI * 2);
+        ctx.ellipse(140, 130, 128, 115, 0, 0, Math.PI * 2);
         ctx.stroke();
 
-        // Pitch strip
+        // Pitch Strip
         ctx.fillStyle = '#7a8c60';
-        ctx.fillRect(118, 30, 40, 215);
+        ctx.fillRect(120, 20, 40, 210);
         ctx.strokeStyle = '#2b3822';
-        ctx.strokeRect(118, 30, 40, 215);
+        ctx.strokeRect(120, 20, 40, 210);
 
+        // Crease & Stumps
         ctx.beginPath();
-        ctx.moveTo(118, 230);
-        ctx.lineTo(158, 230);
+        ctx.moveTo(120, 215);
+        ctx.lineTo(160, 215);
         ctx.stroke();
 
         ctx.fillStyle = '#2b3822';
-        ctx.fillRect(132, 242, 3, 10);
-        ctx.fillRect(136, 242, 3, 10);
-        ctx.fillRect(140, 242, 3, 10);
+        ctx.fillRect(133, 225, 3, 10);
+        ctx.fillRect(137, 225, 3, 10);
+        ctx.fillRect(141, 225, 3, 10);
 
+        // Fielders Patrol
         fielders.forEach(f => {
-            f.x += f.dir * 0.35;
-            if (Math.abs(f.x - f.baseX) > 18) f.dir *= -1;
+            f.x += f.dir * 0.4;
+            if (Math.abs(f.x - f.baseX) > 20) f.dir *= -1;
 
             ctx.fillStyle = '#2b3822';
             ctx.fillRect(f.x, f.y, 6, 8);
             ctx.fillRect(f.x - 2, f.y - 3, 10, 3);
         });
 
+        // Ball Mechanics
         if (gameState.status === 'BOWLING') {
             gameState.ballY += gameState.ballSpeedY;
-            if (gameState.ballY > 250) {
+            if (gameState.ballY > 235) {
                 gameState.status = 'IDLE';
                 gameState.wickets++;
                 document.getElementById('wickets-val').innerText = gameState.wickets;
@@ -461,28 +480,38 @@
             gameState.ballY += gameState.ballSpeedY;
 
             let distToTarget = Math.hypot(gameState.targetX - gameState.ballX, gameState.targetY - gameState.ballY);
-            if (distToTarget < 5 || gameState.ballY < 15 || gameState.ballY > 260 || gameState.ballX < 10 || gameState.ballX > 265) {
+            if (distToTarget < 5 || gameState.ballY < -15 || gameState.ballY > 275 || gameState.ballX < -5 || gameState.ballX > 285) {
                 gameState.status = 'IDLE';
                 queueNextBall();
             }
         }
 
+        // Draw Ball
         ctx.fillStyle = '#111';
         ctx.fillRect(gameState.ballX - 3, gameState.ballY - 3, 6, 6);
 
+        // Floating Score Popup Effect over pitch
+        if (gameState.popupTimer > 0) {
+            ctx.fillStyle = '#111';
+            ctx.font = 'bold 16px Courier New';
+            ctx.fillText(gameState.popupText, 130, 100);
+            gameState.popupTimer--;
+        }
+
+        // Draw Batsman
         ctx.fillStyle = '#111';
-        ctx.fillRect(128, 220, 12, 18);
-        ctx.fillRect(130, 215, 8, 5);
+        ctx.fillRect(130, 205, 12, 18);
+        ctx.fillRect(132, 200, 8, 5);
 
         if (gameState.batSwinging) {
-            let batX = 120;
-            if (gameState.shotDirection === 1) batX = 110;
-            if (gameState.shotDirection === 3) batX = 135;
-            ctx.fillRect(batX, 213, 16, 5);
+            let batX = 122;
+            if (gameState.shotDirection === 1) batX = 112;
+            if (gameState.shotDirection === 3) batX = 138;
+            ctx.fillRect(batX, 198, 16, 5);
             gameState.swingFrame--;
             if (gameState.swingFrame <= 0) gameState.batSwinging = false;
         } else {
-            ctx.fillRect(124, 223, 5, 14);
+            ctx.fillRect(126, 208, 5, 14);
         }
 
         requestAnimationFrame(gameLoop);
