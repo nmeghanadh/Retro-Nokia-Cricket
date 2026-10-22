@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Nokia Retro Cricket 2006 - Family Tournament</title>
-    <!-- PeerJS for 100% Free, Zero-Account P2P Real-Time Room Networking -->
-    <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+    <!-- MQTT.js via CDN for 100% reliable multi-network real-time room sync -->
+    <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
     <style>
         body {
             background-color: #0b0f19;
@@ -197,22 +197,11 @@
 </div>
 
 <script>
-    let peer, conn;
+    let mqttClient;
     let isHost = false;
-    let connections = {}; 
+    let roomCode = "";
     let roomPlayers = {}; 
     let playerName = "Player";
-
-    // Public STUN servers config so mobile data & firewalls allow P2P connections
-    const peerConfig = {
-        config: {
-            iceServers: [
-                { urls: 'stun:stun.l.google.com:19302' },
-                { urls: 'stun:stun1.l.google.com:19302' },
-                { urls: 'stun:global.stun.twilio.com:3478' }
-            ]
-        }
-    };
 
     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     function playBeep(freq, type, duration) {
@@ -258,48 +247,53 @@
         { x: 180, y: 32, baseX: 180, baseY: 32, dir: -1 }
     ];
 
+    // --- CONNECT TO MQTT BROKER ---
+    function connectMQTT(callback) {
+        if (mqttClient && mqttClient.connected) {
+            callback();
+            return;
+        }
+        document.getElementById('status-msg').innerText = "Connecting to server...";
+        
+        // Public HiveMQ broker over WebSockets (Port 8884) - Works on all mobile networks instantly
+        mqttClient = mqtt.connect('wss://broker.hivemq.com:8884/mqtt', {
+            clientId: 'nokia_' + Math.random().toString(16).substring(2, 10)
+        });
+
+        mqttClient.on('connect', () => {
+            document.getElementById('status-msg').innerText = "";
+            callback();
+        });
+
+        mqttClient.on('error', (err) => {
+            alert("Network connection error. Check your internet.");
+            document.getElementById('status-msg').innerText = "";
+        });
+
+        mqttClient.on('message', (topic, payload) => {
+            try {
+                let data = JSON.parse(payload.toString());
+                handleIncomingMessage(data);
+            } catch(e) {}
+        });
+    }
+
     // --- HOST ROOM SETUP ---
     function hostRoom() {
         playerName = document.getElementById('player-name').value.trim() || "Host";
-        let roomCode = document.getElementById('custom-room-input').value.trim().toUpperCase();
+        roomCode = document.getElementById('custom-room-input').value.trim().toUpperCase();
 
         if (!playerName || !roomCode) {
             alert("Please enter your name and a room code!");
             return;
         }
 
-        document.getElementById('status-msg').innerText = "Opening room...";
-        
-        // Pass STUN server configuration here
-        peer = new Peer(roomCode, peerConfig); 
-
-        peer.on('open', (id) => {
+        connectMQTT(() => {
             isHost = true;
-            roomPlayers[playerName] = { score: 0, wickets: 0, status: 'LOBBY' };
-            showHostLobby();
-        });
-
-        peer.on('error', (err) => {
-            if (err.type === 'unavailable-id') {
-                alert("Room code already taken! Try another word.");
-            } else {
-                alert("Connection error: " + err.type);
-            }
-            document.getElementById('status-msg').innerText = "";
-        });
-
-        peer.on('connection', (incomingConn) => {
-            connections[incomingConn.peer] = incomingConn;
-
-            incomingConn.on('data', (data) => {
-                if (data.type === 'JOIN_ROOM') {
-                    roomPlayers[data.name] = { score: 0, wickets: 0, status: 'LOBBY' };
-                    broadcastLobbyState();
-                    if (gameState.status === 'LOBBY_WAIT' || isHost) showHostLobby();
-                } else if (data.type === 'SUBMIT_SCORE') {
-                    roomPlayers[data.name] = { score: data.score, wickets: data.wickets, status: data.status };
-                    if (isHost && gameState.status === 'WAITING_HOST') showHostLobby();
-                }
+            let topic = `nokia/cricket/room/${roomCode}`;
+            mqttClient.subscribe(topic, () => {
+                roomPlayers[playerName] = { score: 0, wickets: 0, status: 'LOBBY' };
+                showHostLobby();
             });
         });
     }
@@ -315,7 +309,7 @@
         overlay.classList.remove('hidden');
         overlay.innerHTML = `
             <h3 style="margin:0 0 3px 0;">🛡️ HOST LOBBY</h3>
-            <p style="font-size:10px; margin:0 0 4px 0;">Code: <b style="color:#047857">${peer.id}</b></p>
+            <p style="font-size:10px; margin:0 0 4px 0;">Code: <b style="color:#047857">${roomCode}</b></p>
             <div style="max-height:130px; overflow-y:auto; width:100%;">
                 <table class="leaderboard-table">
                     <tr><th>Player</th><th>Score</th><th>Status</th></tr>
@@ -327,12 +321,10 @@
         `;
     }
 
-    function broadcastLobbyState() {
-        if (!isHost) return;
-        const packet = { type: 'UPDATE_LOBBY', players: roomPlayers };
-        Object.values(connections).forEach(c => {
-            if (c.open) c.send(packet);
-        });
+    function publishMessage(msgObj) {
+        if (mqttClient && mqttClient.connected) {
+            mqttClient.publish(`nokia/cricket/room/${roomCode}`, JSON.stringify(msgObj));
+        }
     }
 
     function hostStartMatch() {
@@ -341,66 +333,36 @@
             roomPlayers[name] = { score: 0, wickets: 0, status: 'PLAYING' };
         });
 
-        const packet = { type: 'START_MATCH', players: roomPlayers };
-        Object.values(connections).forEach(c => {
-            if (c.open) c.send(packet);
-        });
+        publishMessage({ type: 'START_MATCH', players: roomPlayers });
         startMyInnings();
     }
 
     function hostRevealResults() {
         if (!isHost) return;
-        const packet = { type: 'SHOW_LEADERBOARD', leaderboard: roomPlayers };
-        Object.values(connections).forEach(c => {
-            if (c.open) c.send(packet);
-        });
+        publishMessage({ type: 'SHOW_LEADERBOARD', leaderboard: roomPlayers });
         renderLeaderboardScreen(roomPlayers);
     }
 
     // --- JOIN ROOM SETUP ---
     function joinRoom() {
         playerName = document.getElementById('player-name').value.trim() || "Player";
-        let targetRoomCode = document.getElementById('custom-room-input').value.trim().toUpperCase();
+        roomCode = document.getElementById('custom-room-input').value.trim().toUpperCase();
 
-        if (!playerName || !targetRoomCode) {
+        if (!playerName || !roomCode) {
             alert("Please enter your name and the room code!");
             return;
         }
 
-        document.getElementById('status-msg').innerText = "Connecting to room...";
-        
-        // Pass STUN server configuration here as well
-        peer = new Peer(undefined, peerConfig);
-
-        peer.on('open', () => {
-            conn = peer.connect(targetRoomCode);
-
-            conn.on('open', () => {
-                conn.send({ type: 'JOIN_ROOM', name: playerName });
-                showClientLobby(targetRoomCode);
-            });
-
-            conn.on('data', (data) => {
-                if (data.type === 'UPDATE_LOBBY') {
-                    roomPlayers = data.players;
-                    if (gameState.status === 'LOBBY_WAIT') showClientLobby(targetRoomCode);
-                } else if (data.type === 'START_MATCH') {
-                    roomPlayers = data.players || roomPlayers;
-                    startMyInnings();
-                } else if (data.type === 'SHOW_LEADERBOARD') {
-                    roomPlayers = data.leaderboard;
-                    renderLeaderboardScreen(roomPlayers);
-                }
-            });
-
-            conn.on('error', (err) => {
-                alert("Room not found or connection blocked! Ensure Host created it first.");
-                document.getElementById('status-msg').innerText = "";
+        connectMQTT(() => {
+            let topic = `nokia/cricket/room/${roomCode}`;
+            mqttClient.subscribe(topic, () => {
+                publishMessage({ type: 'JOIN_ROOM', name: playerName });
+                showClientLobby(roomCode);
             });
         });
     }
 
-    function showClientLobby(roomCode) {
+    function showClientLobby(code) {
         gameState.status = 'LOBBY_WAIT';
         let listHTML = '';
         Object.keys(roomPlayers).forEach(name => {
@@ -411,7 +373,7 @@
         overlay.classList.remove('hidden');
         overlay.innerHTML = `
             <h3 style="margin:0 0 3px 0;">⏳ WAITING FOR HOST</h3>
-            <p style="font-size:10px; margin:2px 0;">Room: <b>${roomCode}</b></p>
+            <p style="font-size:10px; margin:2px 0;">Room: <b>${code}</b></p>
             <p style="font-size:10px; color:#333; margin:2px 0;">Connected Players:</p>
             <ul style="font-size:10px; text-align:left; max-height:100px; overflow-y:auto; margin:0 auto; padding-left:20px;">
                 ${listHTML}
@@ -420,11 +382,32 @@
         `;
     }
 
+    // --- INCOMING MESSAGE DISPATCHER ---
+    function handleIncomingMessage(data) {
+        if (data.type === 'JOIN_ROOM') {
+            roomPlayers[data.name] = { score: 0, wickets: 0, status: 'LOBBY' };
+            if (isHost) {
+                publishMessage({ type: 'UPDATE_LOBBY', players: roomPlayers });
+                showHostLobby();
+            }
+        } else if (data.type === 'UPDATE_LOBBY') {
+            roomPlayers = data.players;
+            if (gameState.status === 'LOBBY_WAIT') showClientLobby(roomCode);
+        } else if (data.type === 'START_MATCH') {
+            roomPlayers = data.players || roomPlayers;
+            startMyInnings();
+        } else if (data.type === 'SUBMIT_SCORE') {
+            roomPlayers[data.name] = { score: data.score, wickets: data.wickets, status: data.status };
+            if (isHost && gameState.status === 'WAITING_HOST') showHostLobby();
+        } else if (data.type === 'SHOW_LEADERBOARD') {
+            roomPlayers = data.leaderboard;
+            renderLeaderboardScreen(roomPlayers);
+        }
+    }
+
     function sendMyScore(statusVal) {
         roomPlayers[playerName] = { score: gameState.score, wickets: gameState.wickets, status: statusVal };
-        if (!isHost && conn && conn.open) {
-            conn.send({ type: 'SUBMIT_SCORE', name: playerName, score: gameState.score, wickets: gameState.wickets, status: statusVal });
-        }
+        publishMessage({ type: 'SUBMIT_SCORE', name: playerName, score: gameState.score, wickets: gameState.wickets, status: statusVal });
     }
 
     function startMyInnings() {
@@ -604,6 +587,7 @@
     });
 
     function endInnings() {
+        gameState.status = 'WAITING_HOST';
         sendMyScore('FINISHED');
         playBeep(200, 'sawtooth', 0.5);
 
