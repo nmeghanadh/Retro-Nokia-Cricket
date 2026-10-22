@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Nokia Retro Cricket 2006 - Host Controlled Tournament</title>
+    <title>Nokia Retro Cricket 2006 - Synchronized Tournament</title>
     <!-- PeerJS for 100% Free, Zero-Account P2P Real-Time Room Networking -->
     <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
     <style>
@@ -158,7 +158,7 @@
         
         <!-- ROOM SETUP SCREEN -->
         <div id="overlay" class="screen-overlay">
-            <h3 style="margin:0 0 3px 0;">🏏 RETRO TOURNAMENT</h3>
+            <h3 style="margin:0 0 3px 0;">🏏 TOURNAMENT LOBBY</h3>
             <p style="font-size:10px; margin:2px 0 5px 0; text-align:center;">
                 [1] Left | [3] Right | [4,6] Lofted
             </p>
@@ -200,7 +200,7 @@
     let peer, conn;
     let isHost = false;
     let connections = {}; 
-    let leaderboardData = {}; // { name: { score, wickets, status: 'PLAYING'/'FINISHED' } }
+    let roomPlayers = {}; 
     let playerName = "Player";
 
     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -247,7 +247,7 @@
         { x: 180, y: 32, baseX: 180, baseY: 32, dir: -1 }
     ];
 
-    // HOST ROOM
+    // --- HOST ROOM SETUP ---
     function hostRoom() {
         playerName = document.getElementById('player-name').value.trim() || "Host";
         let roomCode = document.getElementById('custom-room-input').value.trim().toUpperCase();
@@ -257,44 +257,95 @@
             return;
         }
 
-        document.getElementById('status-msg').innerText = "Creating room...";
+        document.getElementById('status-msg').innerText = "Opening room...";
         peer = new Peer(roomCode); 
 
         peer.on('open', (id) => {
             isHost = true;
-            leaderboardData[playerName] = { score: 0, wickets: 0, status: 'PLAYING' };
-            document.getElementById('overlay').innerHTML = `
-                <h3 style="margin:0 0 3px 0;">🏏 HOST CONTROL</h3>
-                <p style="font-size:10px; margin:2px 0;">Code: <b style="color:#047857; font-size:13px;">${id}</b></p>
-                <button class="key" style="background:#2b3822; color:#fff; width:100%; padding:8px; font-size:11px; margin-top:5px;" onclick="startMyInnings()">START MY INNINGS</button>
-            `;
+            roomPlayers[playerName] = { score: 0, wickets: 0, status: 'LOBBY' };
+            showHostLobby();
         });
 
         peer.on('error', (err) => {
             if (err.type === 'unavailable-id') {
-                alert("That room code is already taken! Try another word.");
+                alert("Room code already taken! Try another word.");
             } else {
-                alert("Connection error: " + err.type);
+                alert("Error: " + err.type);
             }
             document.getElementById('status-msg').innerText = "";
         });
 
         peer.on('connection', (incomingConn) => {
             connections[incomingConn.peer] = incomingConn;
-            
+
             incomingConn.on('data', (data) => {
-                if (data.type === 'SUBMIT_SCORE') {
-                    leaderboardData[data.name] = { score: data.score, wickets: data.wickets, status: data.status };
-                    // If host is waiting, update host's control panel view
-                    if (gameState.status === 'WAITING_HOST' && isHost) {
-                        showHostWaitingScreen();
-                    }
+                if (data.type === 'JOIN_ROOM') {
+                    roomPlayers[data.name] = { score: 0, wickets: 0, status: 'LOBBY' };
+                    broadcastLobbyState();
+                    if (gameState.status === 'LOBBY_WAIT' || isHost) showHostLobby();
+                } else if (data.type === 'SUBMIT_SCORE') {
+                    roomPlayers[data.name] = { score: data.score, wickets: data.wickets, status: data.status };
+                    if (isHost && gameState.status === 'WAITING_HOST') showHostLobby();
                 }
             });
         });
     }
 
-    // JOIN ROOM
+    function showHostLobby() {
+        let listHTML = '';
+        Object.keys(roomPlayers).forEach(name => {
+            let p = roomPlayers[name];
+            listHTML += `<tr><td>${name}</td><td><b>${p.score}/${p.wickets}</b></td><td>${p.status}</td></tr>`;
+        });
+
+        const overlay = document.getElementById('overlay');
+        overlay.classList.remove('hidden');
+        overlay.innerHTML = `
+            <h3 style="margin:0 0 3px 0;">🛡️ HOST LOBBY</h3>
+            <p style="font-size:10px; margin:0 0 4px 0;">Code: <b style="color:#047857">${peer.id}</b></p>
+            <div style="max-height:130px; overflow-y:auto; width:100%;">
+                <table class="leaderboard-table">
+                    <tr><th>Player</th><th>Score</th><th>Status</th></tr>
+                    ${listHTML}
+                </table>
+            </div>
+            <button class="key" style="background:#047857; color:#fff; width:100%; padding:8px; font-size:11px; margin-top:6px;" onclick="hostStartMatch()">🚀 START MATCH FOR ALL</button>
+            <button class="key" style="background:#2b3822; color:#fff; width:100%; padding:6px; font-size:10px; margin-top:4px;" onclick="hostRevealResults()">📢 REVEAL LEADERBOARD</button>
+        `;
+    }
+
+    function broadcastLobbyState() {
+        if (!isHost) return;
+        const packet = { type: 'UPDATE_LOBBY', players: roomPlayers };
+        Object.values(connections).forEach(c => {
+            if (c.open) c.send(packet);
+        });
+    }
+
+    function hostStartMatch() {
+        if (!isHost) return;
+        // Reset scores for all players for the new round
+        Object.keys(roomPlayers).forEach(name => {
+            roomPlayers[name] = { score: 0, wickets: 0, status: 'PLAYING' };
+        });
+
+        const packet = { type: 'START_MATCH', players: roomPlayers };
+        Object.values(connections).forEach(c => {
+            if (c.open) c.send(packet);
+        });
+        startMyInnings();
+    }
+
+    function hostRevealResults() {
+        if (!isHost) return;
+        const packet = { type: 'SHOW_LEADERBOARD', leaderboard: roomPlayers };
+        Object.values(connections).forEach(c => {
+            if (c.open) c.send(packet);
+        });
+        renderLeaderboardScreen(roomPlayers);
+    }
+
+    // --- JOIN ROOM SETUP ---
     function joinRoom() {
         playerName = document.getElementById('player-name').value.trim() || "Player";
         let targetRoomCode = document.getElementById('custom-room-input').value.trim().toUpperCase();
@@ -304,35 +355,63 @@
             return;
         }
 
-        document.getElementById('status-msg').innerText = "Connecting...";
+        document.getElementById('status-msg').innerText = "Connecting to room...";
         peer = new Peer();
 
         peer.on('open', () => {
             conn = peer.connect(targetRoomCode);
 
             conn.on('open', () => {
-                startMyInnings();
+                conn.send({ type: 'JOIN_ROOM', name: playerName });
+                showClientLobby(targetRoomCode);
             });
 
             conn.on('data', (data) => {
-                if (data.type === 'SHOW_LEADERBOARD') {
-                    // Host approved leaderboard display for everyone
-                    leaderboardData = data.leaderboard;
-                    renderLeaderboardScreen();
+                if (data.type === 'UPDATE_LOBBY') {
+                    roomPlayers = data.players;
+                    if (gameState.status === 'LOBBY_WAIT') showClientLobby(targetRoomCode);
+                } else if (data.type === 'START_MATCH') {
+                    roomPlayers = data.players || roomPlayers;
+                    startMyInnings();
+                } else if (data.type === 'SHOW_LEADERBOARD') {
+                    roomPlayers = data.leaderboard;
+                    renderLeaderboardScreen(roomPlayers);
                 }
             });
 
             conn.on('error', () => {
-                alert("Room not found! Make sure the host created it first.");
+                alert("Room not found! Check code or ensure Host created it.");
                 document.getElementById('status-msg').innerText = "";
             });
         });
     }
 
+    function showClientLobby(roomCode) {
+        gameState.status = 'LOBBY_WAIT';
+        let listHTML = '';
+        Object.keys(roomPlayers).forEach(name => {
+            listHTML += `<li>${name}</li>`;
+        });
+
+        const overlay = document.getElementById('overlay');
+        overlay.classList.remove('hidden');
+        overlay.innerHTML = `
+            <h3 style="margin:0 0 3px 0;">⏳ WAITING FOR HOST</h3>
+            <p style="font-size:10px; margin:2px 0;">Room: <b>${roomCode}</b></p>
+            <p style="font-size:10px; color:#333; margin:2px 0;">Connected Players:</p>
+            <ul style="font-size:10px; text-align:left; max-height:100px; overflow-y:auto; margin:0 auto; padding-left:20px;">
+                ${listHTML}
+            </ul>
+            <p style="font-size:9px; color:#047857; margin-top:10px; font-weight:bold;">Game will start automatically when Host clicks Start!</p>
+        `;
+    }
+
     function sendMyScore(statusVal) {
-        leaderboardData[playerName] = { score: gameState.score, wickets: gameState.wickets, status: statusVal };
+        roomPlayers[playerName] = { score: gameState.score, wickets: gameState.wickets, status: statusVal };
         if (!isHost && conn && conn.open) {
             conn.send({ type: 'SUBMIT_SCORE', name: playerName, score: gameState.score, wickets: gameState.wickets, status: statusVal });
+        } else if (isHost) {
+            // Host keeps roomPlayers updated locally
         }
     }
 
@@ -513,69 +592,27 @@
     });
 
     function endInnings() {
-        gameState.status = 'WAITING_HOST';
         sendMyScore('FINISHED');
         playBeep(200, 'sawtooth', 0.5);
 
         if (isHost) {
-            showHostWaitingScreen();
+            showHostLobby();
         } else {
-            showClientWaitingScreen();
+            const overlay = document.getElementById('overlay');
+            overlay.classList.remove('hidden');
+            overlay.innerHTML = `
+                <h3 style="margin:0 0 5px 0;">⏳ INNINGS OVER</h3>
+                <p style="font-size:11px; text-align:center; margin:10px 0;">Score: <b>${gameState.score}/${gameState.wickets}</b></p>
+                <p style="font-size:10px; color:#333; text-align:center; font-style:italic;">Waiting for Host to review scores and reveal final standings...</p>
+            `;
         }
     }
 
-    function showClientWaitingScreen() {
-        const overlay = document.getElementById('overlay');
-        overlay.classList.remove('hidden');
-        overlay.innerHTML = `
-            <h3 style="margin:0 0 5px 0;">⏳ INNINGS OVER</h3>
-            <p style="font-size:11px; text-align:center; margin:10px 0;">Your Score: <b>${gameState.score}/${gameState.wickets}</b></p>
-            <p style="font-size:10px; color:#333; text-align:center; font-style:italic;">Waiting for Host to approve and reveal final tournament standings to everyone...</p>
-        `;
-    }
-
-    function showHostWaitingScreen() {
-        const overlay = document.getElementById('overlay');
-        overlay.classList.remove('hidden');
-
-        let statusListHTML = '';
-        Object.keys(leaderboardData).forEach(name => {
-            let p = leaderboardData[name];
-            let statusBadge = p.status === 'FINISHED' ? '✅ Finished' : '⏳ Playing...';
-            statusListHTML += `<tr><td>${name}</td><td><b>${p.score}/${p.wickets}</b></td><td>${statusBadge}</td></tr>`;
-        });
-
-        overlay.innerHTML = `
-            <h3 style="margin:0 0 4px 0;">🛡️ HOST DASHBOARD</h3>
-            <p style="font-size:9px; margin:0 0 4px 0;">Monitor players below. When ready, reveal results:</p>
-            <div style="max-height:160px; overflow-y:auto; width:100%;">
-                <table class="leaderboard-table">
-                    <tr><th>Player</th><th>Score</th><th>Status</th></tr>
-                    ${statusListHTML}
-                </table>
-            </div>
-            <button class="key" style="background:#047857; color:#fff; width:100%; padding:8px; font-size:11px; margin-top:8px;" onclick="hostApproveAndReveal()">📢 REVEAL LEADERBOARD TO ALL</button>
-        `;
-    }
-
-    function hostApproveAndReveal() {
-        if (!isHost) return;
-
-        // Broadcast final leaderboard to all connected clients
-        const packet = { type: 'SHOW_LEADERBOARD', leaderboard: leaderboardData };
-        Object.values(connections).forEach(c => {
-            if (c.open) c.send(packet);
-        });
-
-        // Show on host screen as well
-        renderLeaderboardScreen();
-    }
-
-    function renderLeaderboardScreen() {
-        const sortedPlayers = Object.keys(leaderboardData).map(name => ({
+    function renderLeaderboardScreen(data) {
+        const sortedPlayers = Object.keys(data).map(name => ({
             name: name,
-            score: leaderboardData[name].score || 0,
-            wickets: leaderboardData[name].wickets || 0
+            score: data[name].score || 0,
+            wickets: data[name].wickets || 0
         })).sort((a, b) => {
             if (b.score !== a.score) return b.score - a.score;
             return a.wickets - b.wickets;
@@ -599,10 +636,17 @@
             `;
         });
 
-        leaderboardHTML += `
-            </table>
-            <button class="key" style="background:#2b3822; color:#fff; width:100%; padding:7px; font-size:11px; margin-top:6px;" onclick="startMyInnings()">PLAY AGAIN</button>
-        `;
+        if (isHost) {
+            leaderboardHTML += `
+                </table>
+                <button class="key" style="background:#047857; color:#fff; width:100%; padding:7px; font-size:11px; margin-top:6px;" onclick="hostStartMatch()">🔄 PLAY AGAIN FOR ALL</button>
+            `;
+        } else {
+            leaderboardHTML += `
+                </table>
+                <p style="font-size:9px; color:#333; margin-top:6px; font-style:italic; text-align:center;">Waiting for Host to start next round...</p>
+            `;
+        }
 
         const overlay = document.getElementById('overlay');
         overlay.classList.remove('hidden');
