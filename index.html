@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Nokia Retro Cricket 2005 - Enhanced</title>
+    <title>Nokia Retro Cricket 2006 - Ultimate Edition</title>
     <style>
         body {
             background-color: #0f172a;
@@ -36,12 +36,12 @@
         }
         /* Authentic Nokia LCD Screen */
         .lcd-screen {
-            background: #9ead86; /* Classic Nokia green-tinted monochrome LCD */
+            background: #9ead86; /* Classic green-tinted monochrome LCD */
             border: 6px solid #2b3822;
             border-radius: 6px;
             padding: 10px;
             width: 300px;
-            height: 380px;
+            height: 390px;
             box-sizing: border-box;
             display: flex;
             flex-direction: column;
@@ -69,22 +69,22 @@
             color: #2b3822;
             font-weight: bold;
             text-align: center;
-            height: 20px;
+            height: 22px;
         }
         /* Keypad Styling */
         .keypad {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
-            gap: 8px;
+            gap: 6px;
             margin-top: 15px;
-            padding: 0 10px;
+            padding: 0 5px;
         }
         .key {
             background: #475569;
             color: #fff;
             border: none;
-            padding: 12px;
-            font-size: 16px;
+            padding: 10px;
+            font-size: 14px;
             font-weight: bold;
             border-radius: 6px;
             cursor: pointer;
@@ -96,19 +96,16 @@
             box-shadow: 0 0 0 #1e293b;
         }
         .key-action {
-            grid-column: span 3;
             background: #10b981;
             box-shadow: 0 4px 0 #047857;
-            font-size: 18px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
+            font-size: 12px;
         }
         .screen-overlay {
             position: absolute;
             top: 10px;
             left: 10px;
             width: 280px;
-            height: 360px;
+            height: 370px;
             background: rgba(158, 173, 134, 0.96);
             display: flex;
             flex-direction: column;
@@ -136,15 +133,20 @@
 <body>
 
 <div class="phone-body">
-    <div class="brand">Nokia 1600 Retro</div>
+    <div class="brand">Nokia 1110i (2006)</div>
     
     <div class="lcd-screen">
         
         <!-- START / GAME OVER SCREEN -->
         <div id="overlay" class="screen-overlay">
-            <h3 style="margin:0 0 5px 0;">🏏 CRICKET CUP</h3>
-            <p style="font-size:11px; margin:5px 0 15px 0; text-align:center;">Time your shots with the SWING button as the ball approaches!</p>
-            <input type="text" id="player-name" placeholder="Enter Name" maxlength="10" value="Player 1">
+            <h3 style="margin:0 0 5px 0;">🏏 RETRO CRICKET 2006</h3>
+            <p style="font-size:11px; margin:5px 0 15px 0; text-align:center;">
+                <b>Controls:</b><br>
+                [1] Left Shot | [3] Right Shot<br>
+                [4] Lofted Drive | [6] Straight Hit<br>
+                Watch out for fielders taking catches!
+            </p>
+            <input type="text" id="player-name" placeholder="Batsman Name" maxlength="10" value="Legend">
             <button class="key" style="background:#2b3822; color:#fff; width:100%; padding:10px;" onclick="startGame()">START INNINGS</button>
         </div>
 
@@ -155,26 +157,26 @@
         </div>
 
         <!-- CANVAS GAME PITCH & OUTFIELD -->
-        <canvas id="gameCanvas" width="276" height="280"></canvas>
+        <canvas id="gameCanvas" width="276" height="270"></canvas>
 
         <!-- LCD FOOTER -->
-        <div class="lcd-footer" id="comm-text">Press HIT to bat!</div>
+        <div class="lcd-footer" id="comm-text">Press a shot key [1,3,4,6]!</div>
     </div>
 
     <!-- RETRO KEYPAD -->
     <div class="keypad">
-        <button class="key" onclick="handleInput()">1</button>
-        <button class="key" onclick="handleInput()">2</button>
-        <button class="key" onclick="handleInput()">3</button>
-        <button class="key" onclick="handleInput()">4</button>
-        <button class="key" onclick="handleInput()">5</button>
-        <button class="key" onclick="handleInput()">6</button>
-        <button class="key key-action" onclick="handleInput()">⚡ SWING / HIT</button>
+        <button class="key" onclick="playShot(1)">1<br><small>Left</small></button>
+        <button class="key" onclick="playShot(2)">2<br><small>Defend</small></button>
+        <button class="key" onclick="playShot(3)">3<br><small>Right</small></button>
+        <button class="key" onclick="playShot(4)">4<br><small>Lofted</small></button>
+        <button class="key" onclick="playShot(5)">5<br><small>Straight</small></button>
+        <button class="key" onclick="playShot(6)">6<br><small>Power</small></button>
+        <button class="key key-action" style="grid-column: span 3;" onclick="playShot(5)">⚡ QUICK HIT (5 / Space)</button>
     </div>
 </div>
 
 <script>
-    // Authentic 8-bit Nokia sound generator using Web Audio API
+    // Authentic 8-bit Nokia sound generator
     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     function playBeep(freq, type, duration) {
         if (audioCtx.state === 'suspended') audioCtx.resume();
@@ -204,25 +206,26 @@
         targetX: 138,
         targetY: 30,
         ballSpeedX: 0,
-        ballSpeedY: 3,
+        ballSpeedY: 2.5,
         batSwinging: false,
-        swingFrame: 0
+        swingFrame: 0,
+        shotDirection: 5
     };
 
-    // Outfield Fielders setup (Patrolling positions)
+    // Outfield Fielders patrolling the boundary and inner ring
     let fielders = [
-        { x: 50, y: 80, baseX: 50, baseY: 80, dir: 1 },
-        { x: 220, y: 80, baseX: 220, baseY: 80, dir: -1 },
-        { x: 100, y: 50, baseX: 100, baseY: 50, dir: 1 },
-        { x: 180, y: 50, baseX: 180, baseY: 50, dir: -1 }
+        { x: 50, y: 70, baseX: 50, baseY: 70, dir: 1 },   // Deep Cover
+        { x: 220, y: 70, baseX: 220, baseY: 70, dir: -1 }, // Deep Midwicket
+        { x: 100, y: 40, baseX: 100, baseY: 40, dir: 1 },  // Long Off
+        { x: 170, y: 40, baseX: 170, baseY: 40, dir: -1 }  // Long On
     ];
 
-    let playerName = "Player 1";
+    let playerName = "Legend";
 
     function startGame() {
         const nameInput = document.getElementById('player-name');
         if (nameInput) {
-            playerName = nameInput.value.trim() || "Player 1";
+            playerName = nameInput.value.trim() || "Legend";
         }
         
         document.getElementById('overlay').classList.add('hidden');
@@ -239,7 +242,8 @@
             ballSpeedX: 0,
             ballSpeedY: 2.5,
             batSwinging: false,
-            swingFrame: 0
+            swingFrame: 0,
+            shotDirection: 5
         };
         
         document.getElementById('score-val').innerText = '0';
@@ -258,45 +262,40 @@
         gameState.status = 'BOWLING';
         gameState.ballX = 138;
         gameState.ballY = 30;
-        gameState.ballSpeedY = 2.5 + Math.random() * 1.5;
+        gameState.ballSpeedY = 2.2 + Math.random() * 1.6;
         document.getElementById('ball-val').innerText = gameState.ball;
         document.getElementById('comm-text').innerText = "Bowler running in...";
         playBeep(300, 'triangle', 0.1);
     }
 
-    function handleInput() {
+    function playShot(direction) {
         if (gameState.status !== 'BOWLING') return;
 
+        gameState.shotDirection = direction;
         gameState.batSwinging = true;
         gameState.swingFrame = 12;
         playBeep(800, 'square', 0.1);
 
-        // Check timing when ball approaches batsman crease (Y: 220 to 245)
-        let batsmanY = 235;
+        // Check timing at batsman crease (Y: 220 to 245)
+        let batsmanY = 230;
         let timingDiff = Math.abs(gameState.ballY - batsmanY);
 
-        if (timingDiff < 8) {
-            // Perfect Timing -> Massive 6 or 4 toward boundary!
-            let runs = Math.random() > 0.4 ? 6 : 4;
-            gameState.score += runs;
-            launchBallFlight(runs === 6 ? 15 : 20, runs === 6 ? 10 : 25, runs);
-            playBeep(1200, 'square', 0.3);
-        } else if (timingDiff < 18) {
-            // Good Timing -> 1 or 2 runs into the gap
-            let runs = Math.random() > 0.5 ? 2 : 1;
-            gameState.score += runs;
-            launchBallFlight(80 + Math.random()*100, 100, runs);
-            playBeep(900, 'square', 0.15);
+        if (timingDiff < 9) {
+            // Perfect Timing -> Boundary or Potential Catch!
+            processBattingContact(true);
+        } else if (timingDiff < 19) {
+            // Good Timing -> 1 or 2 runs
+            processBattingContact(false);
         } else if (timingDiff < 28) {
-            // Early/Late -> Defended
+            // Defended
             document.getElementById('comm-text').innerText = "Defended safely (0)";
             gameState.status = 'IDLE';
             playBeep(400, 'sawtooth', 0.1);
             queueNextBall();
         } else {
-            // Complete Miss -> WICKET!
+            // Miss -> Clean Bowled!
             gameState.wickets++;
-            document.getElementById('comm-text').innerText = "OUT! Timber rattled! ☝️";
+            document.getElementById('comm-text').innerText = "BOWLED! Timber rattled! ☝️";
             gameState.status = 'IDLE';
             playBeep(150, 'sawtooth', 0.4);
             queueNextBall();
@@ -306,12 +305,75 @@
         document.getElementById('wickets-val').innerText = gameState.wickets;
     }
 
+    function processBattingContact(isPerfect) {
+        let targetX = 138;
+        let targetY = 20;
+        let runs = 1;
+
+        // Direction based on keypad choice [1, 3, 4, 5, 6]
+        if (gameState.shotDirection === 1) {
+            targetX = 40 + Math.random() * 30;  // Left Side (Cover)
+            targetY = 60 + Math.random() * 40;
+            runs = isPerfect ? 4 : 1;
+        } else if (gameState.shotDirection === 3) {
+            targetX = 200 + Math.random() * 30; // Right Side (Midwicket)
+            targetY = 60 + Math.random() * 40;
+            runs = isPerfect ? 4 : 1;
+        } else if (gameState.shotDirection === 4 || gameState.shotDirection === 6) {
+            targetX = 100 + Math.random() * 80; // Lofted Straight / Power Slog
+            targetY = 25 + Math.random() * 20;  // Deep boundary
+            runs = isPerfect ? 6 : 2;
+        } else {
+            targetX = 138 + (Math.random() * 40 - 20); // Straight drive
+            targetY = 30;
+            runs = isPerfect ? 4 : 2;
+        }
+
+        // --- CAUGHT OUT CHECK ---
+        // Check if the ball lands dangerously close to any patrolling fielder!
+        let caughtOut = false;
+        if (isPerfect && (gameState.shotDirection === 4 || gameState.shotDirection === 6)) {
+            fielders.forEach(f => {
+                let distToFielder = Math.hypot(f.x - targetX, f.y - targetY);
+                if (distToFielder < 22) {
+                    caughtOut = true; // Fielder was stationed right under the ball!
+                }
+            });
+        }
+
+        if (caughtOut) {
+            gameState.wickets++;
+            gameState.status = 'FLYING';
+            gameState.targetX = targetX;
+            gameState.targetY = targetY;
+            document.getElementById('comm-text').innerText = "CAUGHT OUT near the boundary! ☝️";
+            playBeep(120, 'sawtooth', 0.5);
+            
+            // Animate ball flying to fielder then stopping
+            let dx = targetX - gameState.ballX;
+            let dy = targetY - gameState.ballY;
+            let dist = Math.sqrt(dx*dx + dy*dy);
+            gameState.ballSpeedX = (dx / dist) * 4;
+            gameState.ballSpeedY = (dy / dist) * 4;
+            queueNextBall();
+            return;
+        }
+
+        // Normal scoring shot
+        gameState.score += runs;
+        launchBallFlight(targetX, targetY, runs);
+        if (runs === 6) {
+            playBeep(1200, 'square', 0.3);
+        } else {
+            playBeep(900, 'square', 0.15);
+        }
+    }
+
     function launchBallFlight(targetX, targetY, runs) {
         gameState.status = 'FLYING';
         gameState.targetX = targetX;
         gameState.targetY = targetY;
         
-        // Calculate trajectory vector
         let dx = targetX - gameState.ballX;
         let dy = targetY - gameState.ballY;
         let dist = Math.sqrt(dx*dx + dy*dy);
@@ -324,7 +386,7 @@
         } else if (runs === 4) {
             document.getElementById('comm-text').innerText = "FOUR RUNS! Boundary! 💥";
         } else {
-            document.getElementById('comm-text').innerText = `Good shot! +${runs} run`;
+            document.getElementById('comm-text').innerText = `Good placement! +${runs} run`;
         }
     }
 
@@ -332,14 +394,17 @@
         setTimeout(() => {
             gameState.ball++;
             nextDelivery();
-        }, 1500);
+        }, 1600);
     }
 
-    // Keyboard support: Press '5' or Spacebar to bat
+    // Keyboard support: Numbers 1, 3, 4, 6 for shot selection, 5/Space for straight hit
     window.addEventListener('keydown', (e) => {
-        if (e.key === '5' || e.code === 'Space') {
+        if (['1', '3', '4', '5', '6'].includes(e.key)) {
             e.preventDefault();
-            handleInput();
+            playShot(parseInt(e.key));
+        } else if (e.code === 'Space') {
+            e.preventDefault();
+            playShot(5);
         }
     });
 
@@ -355,53 +420,49 @@
         playBeep(200, 'sawtooth', 0.5);
     }
 
-    // Main Retro Render Loop with Boundary Lines & Fielders
+    // Main Game Loop
     function gameLoop() {
-        // Clear LCD Screen background
         ctx.fillStyle = '#8b9d71';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        // --- DRAW BOUNDARY LINE (Oval boundary rope) ---
+        // Boundary line oval
         ctx.strokeStyle = '#2b3822';
         ctx.lineWidth = 2;
         ctx.beginPath();
-        ctx.ellipse(138, 140, 130, 125, 0, 0, Math.PI * 2);
+        ctx.ellipse(138, 135, 126, 120, 0, 0, Math.PI * 2);
         ctx.stroke();
 
-        // --- DRAW PITCH STRIP ---
+        // Pitch strip
         ctx.fillStyle = '#7a8c60';
-        ctx.fillRect(118, 30, 40, 220);
+        ctx.fillRect(118, 30, 40, 215);
         ctx.strokeStyle = '#2b3822';
-        ctx.strokeRect(118, 30, 40, 220);
+        ctx.strokeRect(118, 30, 40, 215);
 
-        // Crease line
+        // Crease line & stumps
         ctx.beginPath();
-        ctx.moveTo(118, 235);
-        ctx.lineTo(158, 235);
+        ctx.moveTo(118, 230);
+        ctx.lineTo(158, 230);
         ctx.stroke();
 
-        // Stumps at batsman end (Bottom)
         ctx.fillStyle = '#2b3822';
-        ctx.fillRect(132, 248, 3, 10);
-        ctx.fillRect(136, 248, 3, 10);
-        ctx.fillRect(140, 248, 3, 10);
+        ctx.fillRect(132, 242, 3, 10);
+        ctx.fillRect(136, 242, 3, 10);
+        ctx.fillRect(140, 242, 3, 10);
 
-        // --- FIELDERS MOVEMENT & RENDERING ---
+        // Fielders patrolling
         fielders.forEach(f => {
-            f.x += f.dir * 0.4;
-            if (Math.abs(f.x - f.baseX) > 15) f.dir *= -1; // Patrol back and forth
+            f.x += f.dir * 0.35;
+            if (Math.abs(f.x - f.baseX) > 18) f.dir *= -1;
 
-            // Simple pixel fielder sprite
             ctx.fillStyle = '#2b3822';
             ctx.fillRect(f.x, f.y, 6, 8);
-            ctx.fillRect(f.x - 2, f.y - 4, 10, 4); // Head/cap
+            ctx.fillRect(f.x - 2, f.y - 3, 10, 3); // Fielder cap
         });
 
-        // --- BALL PHYSICS & RENDERING ---
+        // Ball physics
         if (gameState.status === 'BOWLING') {
             gameState.ballY += gameState.ballSpeedY;
-            // Passed crease without hit -> Wicket!
-            if (gameState.ballY > 255) {
+            if (gameState.ballY > 250) {
                 gameState.status = 'IDLE';
                 gameState.wickets++;
                 document.getElementById('wickets-val').innerText = gameState.wickets;
@@ -413,30 +474,31 @@
             gameState.ballX += gameState.ballSpeedX;
             gameState.ballY += gameState.ballSpeedY;
 
-            // Stop ball once it reaches target or boundary
             let distToTarget = Math.hypot(gameState.targetX - gameState.ballX, gameState.targetY - gameState.ballY);
-            if (distToTarget < 5 || gameState.ballY < 20 || gameState.ballY > 270 || gameState.ballX < 15 || gameState.ballX > 260) {
+            if (distToTarget < 5 || gameState.ballY < 15 || gameState.ballY > 260 || gameState.ballX < 10 || gameState.ballX > 265) {
                 gameState.status = 'IDLE';
                 queueNextBall();
             }
         }
 
-        // Draw Ball (Pixel Square)
+        // Draw Ball
         ctx.fillStyle = '#111';
         ctx.fillRect(gameState.ballX - 3, gameState.ballY - 3, 6, 6);
 
-        // --- DRAW BATSMAN ---
+        // Draw Batsman & Direction indicator
         ctx.fillStyle = '#111';
-        ctx.fillRect(128, 225, 12, 20); // Body
-        ctx.fillRect(130, 220, 8, 5);  // Helmet
+        ctx.fillRect(128, 220, 12, 18);
+        ctx.fillRect(130, 215, 8, 5);
 
-        // Draw Bat
         if (gameState.batSwinging) {
-            ctx.fillRect(115, 218, 14, 5); // Horizontal swing
+            let batX = 120;
+            if (gameState.shotDirection === 1) batX = 110;
+            if (gameState.shotDirection === 3) batX = 135;
+            ctx.fillRect(batX, 213, 16, 5);
             gameState.swingFrame--;
             if (gameState.swingFrame <= 0) gameState.batSwinging = false;
         } else {
-            ctx.fillRect(124, 228, 5, 14); // Standing bat
+            ctx.fillRect(124, 223, 5, 14);
         }
 
         requestAnimationFrame(gameLoop);
