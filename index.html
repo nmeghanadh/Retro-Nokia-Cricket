@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Nokia Retro Cricket 2006 - Synchronized Tournament</title>
+    <title>Nokia Retro Cricket 2006 - Family Tournament</title>
     <!-- PeerJS for 100% Free, Zero-Account P2P Real-Time Room Networking -->
     <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
     <style>
@@ -203,6 +203,17 @@
     let roomPlayers = {}; 
     let playerName = "Player";
 
+    // Public STUN servers config so mobile data & firewalls allow P2P connections
+    const peerConfig = {
+        config: {
+            iceServers: [
+                { urls: 'stun:stun.l.google.com:19302' },
+                { urls: 'stun:stun1.l.google.com:19302' },
+                { urls: 'stun:global.stun.twilio.com:3478' }
+            ]
+        }
+    };
+
     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     function playBeep(freq, type, duration) {
         if (audioCtx.state === 'suspended') audioCtx.resume();
@@ -258,7 +269,9 @@
         }
 
         document.getElementById('status-msg').innerText = "Opening room...";
-        peer = new Peer(roomCode); 
+        
+        // Pass STUN server configuration here
+        peer = new Peer(roomCode, peerConfig); 
 
         peer.on('open', (id) => {
             isHost = true;
@@ -270,7 +283,7 @@
             if (err.type === 'unavailable-id') {
                 alert("Room code already taken! Try another word.");
             } else {
-                alert("Error: " + err.type);
+                alert("Connection error: " + err.type);
             }
             document.getElementById('status-msg').innerText = "";
         });
@@ -324,7 +337,6 @@
 
     function hostStartMatch() {
         if (!isHost) return;
-        // Reset scores for all players for the new round
         Object.keys(roomPlayers).forEach(name => {
             roomPlayers[name] = { score: 0, wickets: 0, status: 'PLAYING' };
         });
@@ -356,7 +368,9 @@
         }
 
         document.getElementById('status-msg').innerText = "Connecting to room...";
-        peer = new Peer();
+        
+        // Pass STUN server configuration here as well
+        peer = new Peer(undefined, peerConfig);
 
         peer.on('open', () => {
             conn = peer.connect(targetRoomCode);
@@ -379,8 +393,8 @@
                 }
             });
 
-            conn.on('error', () => {
-                alert("Room not found! Check code or ensure Host created it.");
+            conn.on('error', (err) => {
+                alert("Room not found or connection blocked! Ensure Host created it first.");
                 document.getElementById('status-msg').innerText = "";
             });
         });
@@ -410,8 +424,6 @@
         roomPlayers[playerName] = { score: gameState.score, wickets: gameState.wickets, status: statusVal };
         if (!isHost && conn && conn.open) {
             conn.send({ type: 'SUBMIT_SCORE', name: playerName, score: gameState.score, wickets: gameState.wickets, status: statusVal });
-        } else if (isHost) {
-            // Host keeps roomPlayers updated locally
         }
     }
 
