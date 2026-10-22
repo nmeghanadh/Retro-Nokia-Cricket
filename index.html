@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Nokia Retro Cricket - P2P Multiplayer</title>
-    <!-- PeerJS for 100% Free, Zero-Account P2P Real-Time Networking -->
+    <title>Nokia Retro Cricket 2006 - Family Tournament</title>
+    <!-- PeerJS for 100% Free, Zero-Account P2P Real-Time Room Networking -->
     <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
     <style>
         body {
@@ -152,22 +152,23 @@
 <body>
 
 <div class="phone-body">
-    <div class="brand">Nokia P2P Tournament</div>
+    <div class="brand">Nokia 1110i (2006)</div>
     
     <div class="lcd-screen">
         
-        <!-- ROOM SETUP SCREEN -->
+        <!-- ROOM SETUP SCREEN WITH SHORT CODES -->
         <div id="overlay" class="screen-overlay">
-            <h3 style="margin:0 0 5px 0;">🏏 P2P TOURNAMENT</h3>
-            <div id="setup-controls" style="width:100%;">
-                <input type="text" id="player-name" placeholder="Your Name (e.g. Sasi)" maxlength="12">
-                <br>
-                <button class="key" style="background:#2b3822; color:#fff; width:100%; padding:8px; font-size:12px; margin-bottom:10px;" onclick="hostRoom()">HOST NEW ROOM</button>
-                <p style="margin:2px 0; font-size:11px;">— OR JOIN HOST —</p>
-                <input type="text" id="host-id-input" placeholder="Paste Host Room ID">
-                <button class="key" style="background:#047857; color:#fff; width:100%; padding:8px; font-size:12px;" onclick="joinRoom()">JOIN ROOM</button>
+            <h3 style="margin:0 0 4px 0;">🏏 RETRO TOURNAMENT</h3>
+            <p style="font-size:10px; margin:2px 0 6px 0; text-align:center;">
+                [1] Left | [3] Right | [4,6] Lofted
+            </p>
+            <input type="text" id="player-name" placeholder="Your Name (e.g. Sasi)" maxlength="12">
+            <input type="text" id="custom-room-input" placeholder="Room Code (e.g. DIWALI)" maxlength="10">
+            <div style="display: flex; gap: 5px; width: 85%; margin-bottom: 5px;">
+                <button class="key" style="background:#2b3822; color:#fff; flex:1; padding:8px; font-size:11px;" onclick="hostRoom()">HOST</button>
+                <button class="key" style="background:#047857; color:#fff; flex:1; padding:8px; font-size:11px;" onclick="joinRoom()">JOIN</button>
             </div>
-            <div id="status-msg" style="font-size:11px; margin-top:8px; font-weight:bold;"></div>
+            <div id="status-msg" style="font-size:10px; margin-top:2px; font-weight:bold; color:#111;"></div>
         </div>
 
         <!-- LCD HEADER -->
@@ -198,8 +199,8 @@
 <script>
     let peer, conn;
     let isHost = false;
-    let connections = {}; // Host keeps track of all connected players
-    let leaderboardData = {}; // { name: { score, wickets } }
+    let connections = {}; 
+    let leaderboardData = {}; 
     
     let playerName = "Player";
 
@@ -247,22 +248,38 @@
         { x: 180, y: 32, baseX: 180, baseY: 32, dir: -1 }
     ];
 
-    // HOST SETUP
+    // HOST ROOM WITH SHORT CODE
     function hostRoom() {
         playerName = document.getElementById('player-name').value.trim() || "Host";
-        document.getElementById('status-msg').innerText = "Generating room node...";
+        let roomCode = document.getElementById('custom-room-input').value.trim().toUpperCase();
 
-        peer = new Peer(); // Uses free public PeerJS infrastructure (Zero accounts needed)
-        
+        if (!playerName || !roomCode) {
+            alert("Please enter your name and a room code!");
+            return;
+        }
+
+        document.getElementById('status-msg').innerText = "Creating room...";
+
+        peer = new Peer(roomCode); 
+
         peer.on('open', (id) => {
             isHost = true;
             leaderboardData[playerName] = { score: 0, wickets: 0 };
-            document.getElementById('setup-controls').innerHTML = `
-                <p style="margin:0; font-size:11px;">Room Created! Share this ID with family:</p>
-                <b style="color:#047857; font-size:14px; background:#8b9d71; padding:2px 6px; border:1px solid #2b3822; display:inline-block; margin:4px 0;">${id}</b>
-                <br>
-                <button class="key" style="background:#2b3822; color:#fff; width:100%; padding:8px; font-size:12px; margin-top:5px;" onclick="startMyInnings()">START MY INNINGS</button>
+            document.getElementById('overlay').innerHTML = `
+                <h3 style="margin:0 0 4px 0;">🏏 ROOM ACTIVE</h3>
+                <p style="font-size:11px; margin:2px 0;">Code: <b style="color:#047857; font-size:14px;">${id}</b></p>
+                <p style="font-size:10px; color:#333; margin:2px 0 8px 0;">Tell family to join using: <b>${id}</b></p>
+                <button class="key" style="background:#2b3822; color:#fff; width:100%; padding:9px; font-size:12px;" onclick="startMyInnings()">START MY INNINGS</button>
             `;
+        });
+
+        peer.on('error', (err) => {
+            if (err.type === 'unavailable-id') {
+                alert("That room code is already taken! Try another word.");
+            } else {
+                alert("Connection error: " + err.type);
+            }
+            document.getElementById('status-msg').innerText = "";
         });
 
         peer.on('connection', (incomingConn) => {
@@ -277,17 +294,21 @@
         });
     }
 
-    // JOIN SETUP
+    // JOIN ROOM WITH SHORT CODE
     function joinRoom() {
         playerName = document.getElementById('player-name').value.trim() || "Player";
-        let hostId = document.getElementById('host-id-input').value.trim();
-        if (!hostId) return alert("Please enter the Host Room ID!");
+        let targetRoomCode = document.getElementById('custom-room-input').value.trim().toUpperCase();
 
-        document.getElementById('status-msg').innerText = "Connecting to host...";
+        if (!playerName || !targetRoomCode) {
+            alert("Please enter your name and the room code!");
+            return;
+        }
+
+        document.getElementById('status-msg').innerText = "Connecting...";
         peer = new Peer();
 
         peer.on('open', () => {
-            conn = peer.connect(hostId);
+            conn = peer.connect(targetRoomCode);
 
             conn.on('open', () => {
                 startMyInnings();
@@ -299,8 +320,9 @@
                 }
             });
 
-            conn.on('error', (err) => {
-                alert("Connection failed: " + err);
+            conn.on('error', () => {
+                alert("Room not found! Make sure the host created it first.");
+                document.getElementById('status-msg').innerText = "";
             });
         });
     }
@@ -501,7 +523,6 @@
         sendMyScore();
         playBeep(200, 'sawtooth', 0.5);
 
-        // Sort leaderboard items by score descending
         const sortedPlayers = Object.keys(leaderboardData).map(name => ({
             name: name,
             score: leaderboardData[name].score || 0,
