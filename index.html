@@ -3,7 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Nokia Retro Cricket 2006 - Polished Edition</title>
+    <title>Nokia Retro Cricket - P2P Multiplayer</title>
+    <!-- PeerJS for 100% Free, Zero-Account P2P Real-Time Networking -->
+    <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
     <style>
         body {
             background-color: #0b0f19;
@@ -16,7 +18,6 @@
             margin: 0;
             color: #f8fafc;
         }
-        /* Sleek Modern-Retro Nokia Phone Shell */
         .phone-body {
             background: linear-gradient(135deg, #475569 0%, #1e293b 100%);
             padding: 25px;
@@ -34,7 +35,6 @@
             margin-bottom: 12px;
             text-transform: uppercase;
         }
-        /* Crisp Monochrome LCD Screen */
         .lcd-screen {
             background: #9ead86; 
             border: 5px solid #2b3822;
@@ -77,7 +77,6 @@
             align-items: center;
             justify-content: center;
         }
-        /* Tactile Retro Keypad */
         .keypad {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
@@ -120,42 +119,55 @@
             justify-content: center;
             z-index: 10;
             color: #111;
-            padding: 20px;
+            padding: 15px;
             box-sizing: border-box;
+            overflow-y: auto;
         }
         .hidden { display: none !important; }
         input {
             background: #8b9d71;
             border: 2px solid #2b3822;
-            padding: 8px;
+            padding: 7px;
             font-family: inherit;
             font-weight: bold;
             text-align: center;
             color: #111;
-            margin-bottom: 15px;
-            width: 80%;
+            margin-bottom: 8px;
+            width: 85%;
             border-radius: 4px;
+        }
+        .leaderboard-table {
+            width: 100%;
+            font-size: 11px;
+            border-collapse: collapse;
+            margin-top: 5px;
+            text-align: left;
+        }
+        .leaderboard-table th, .leaderboard-table td {
+            padding: 3px;
+            border-bottom: 1px dashed #2b3822;
         }
     </style>
 </head>
 <body>
 
 <div class="phone-body">
-    <div class="brand">Nokia 1110i (2006)</div>
+    <div class="brand">Nokia P2P Tournament</div>
     
     <div class="lcd-screen">
         
-        <!-- START / GAME OVER SCREEN -->
+        <!-- ROOM SETUP SCREEN -->
         <div id="overlay" class="screen-overlay">
-            <h3 style="margin:0 0 5px 0;">🏏 RETRO CRICKET 2006</h3>
-            <p style="font-size:11px; margin:5px 0 15px 0; text-align:center; line-height: 1.4;">
-                <b>Controls:</b><br>
-                [1] Left Shot | [3] Right Shot<br>
-                [4] Lofted Drive | [6] Power Slog<br>
-                Timing is everything!
-            </p>
-            <input type="text" id="player-name" placeholder="Batsman Name" maxlength="10" value="Legend">
-            <button class="key" style="background:#2b3822; color:#fff; width:100%; padding:10px; font-size:14px;" onclick="startGame()">START INNINGS</button>
+            <h3 style="margin:0 0 5px 0;">🏏 P2P TOURNAMENT</h3>
+            <div id="setup-controls" style="width:100%;">
+                <input type="text" id="player-name" placeholder="Your Name (e.g. Sasi)" maxlength="12">
+                <br>
+                <button class="key" style="background:#2b3822; color:#fff; width:100%; padding:8px; font-size:12px; margin-bottom:10px;" onclick="hostRoom()">HOST NEW ROOM</button>
+                <p style="margin:2px 0; font-size:11px;">— OR JOIN HOST —</p>
+                <input type="text" id="host-id-input" placeholder="Paste Host Room ID">
+                <button class="key" style="background:#047857; color:#fff; width:100%; padding:8px; font-size:12px;" onclick="joinRoom()">JOIN ROOM</button>
+            </div>
+            <div id="status-msg" style="font-size:11px; margin-top:8px; font-weight:bold;"></div>
         </div>
 
         <!-- LCD HEADER -->
@@ -164,7 +176,7 @@
             <span>BALL: <b id="ball-val">1</b>/6</span>
         </div>
 
-        <!-- CANVAS GAME PITCH & OUTFIELD -->
+        <!-- CANVAS GAME PITCH -->
         <canvas id="gameCanvas" width="280" height="270"></canvas>
 
         <!-- LCD FOOTER -->
@@ -184,6 +196,13 @@
 </div>
 
 <script>
+    let peer, conn;
+    let isHost = false;
+    let connections = {}; // Host keeps track of all connected players
+    let leaderboardData = {}; // { name: { score, wickets } }
+    
+    let playerName = "Player";
+
     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     function playBeep(freq, type, duration) {
         if (audioCtx.state === 'suspended') audioCtx.resume();
@@ -207,7 +226,7 @@
         wickets: 0,
         ball: 1,
         maxBalls: 6,
-        status: 'IDLE', // 'IDLE', 'BOWLING', 'FLYING'
+        status: 'IDLE',
         ballX: 140,
         ballY: 25,
         targetX: 140,
@@ -228,14 +247,73 @@
         { x: 180, y: 32, baseX: 180, baseY: 32, dir: -1 }
     ];
 
-    let playerName = "Legend";
+    // HOST SETUP
+    function hostRoom() {
+        playerName = document.getElementById('player-name').value.trim() || "Host";
+        document.getElementById('status-msg').innerText = "Generating room node...";
 
-    function startGame() {
-        const nameInput = document.getElementById('player-name');
-        if (nameInput) {
-            playerName = nameInput.value.trim() || "Legend";
-        }
+        peer = new Peer(); // Uses free public PeerJS infrastructure (Zero accounts needed)
         
+        peer.on('open', (id) => {
+            isHost = true;
+            leaderboardData[playerName] = { score: 0, wickets: 0 };
+            document.getElementById('setup-controls').innerHTML = `
+                <p style="margin:0; font-size:11px;">Room Created! Share this ID with family:</p>
+                <b style="color:#047857; font-size:14px; background:#8b9d71; padding:2px 6px; border:1px solid #2b3822; display:inline-block; margin:4px 0;">${id}</b>
+                <br>
+                <button class="key" style="background:#2b3822; color:#fff; width:100%; padding:8px; font-size:12px; margin-top:5px;" onclick="startMyInnings()">START MY INNINGS</button>
+            `;
+        });
+
+        peer.on('connection', (incomingConn) => {
+            connections[incomingConn.peer] = incomingConn;
+            
+            incomingConn.on('data', (data) => {
+                if (data.type === 'SUBMIT_SCORE') {
+                    leaderboardData[data.name] = { score: data.score, wickets: data.wickets };
+                    broadcastLeaderboard();
+                }
+            });
+        });
+    }
+
+    // JOIN SETUP
+    function joinRoom() {
+        playerName = document.getElementById('player-name').value.trim() || "Player";
+        let hostId = document.getElementById('host-id-input').value.trim();
+        if (!hostId) return alert("Please enter the Host Room ID!");
+
+        document.getElementById('status-msg').innerText = "Connecting to host...";
+        peer = new Peer();
+
+        peer.on('open', () => {
+            conn = peer.connect(hostId);
+
+            conn.on('open', () => {
+                startMyInnings();
+            });
+
+            conn.on('data', (data) => {
+                if (data.type === 'UPDATE_LEADERBOARD') {
+                    leaderboardData = data.leaderboard;
+                }
+            });
+
+            conn.on('error', (err) => {
+                alert("Connection failed: " + err);
+            });
+        });
+    }
+
+    function broadcastLeaderboard() {
+        if (!isHost) return;
+        const packet = { type: 'UPDATE_LEADERBOARD', leaderboard: leaderboardData };
+        Object.values(connections).forEach(c => {
+            if (c.open) c.send(packet);
+        });
+    }
+
+    function startMyInnings() {
         document.getElementById('overlay').classList.add('hidden');
         gameState = {
             score: 0,
@@ -264,9 +342,18 @@
         playBeep(600, 'square', 0.2);
     }
 
+    function sendMyScore() {
+        leaderboardData[playerName] = { score: gameState.score, wickets: gameState.wickets };
+        if (isHost) {
+            broadcastLeaderboard();
+        } else if (conn && conn.open) {
+            conn.send({ type: 'SUBMIT_SCORE', name: playerName, score: gameState.score, wickets: gameState.wickets });
+        }
+    }
+
     function nextDelivery() {
         if (gameState.ball > gameState.maxBalls || gameState.wickets >= 3) {
-            endGame();
+            endInnings();
             return;
         }
         gameState.status = 'BOWLING';
@@ -290,9 +377,9 @@
         let timingDiff = Math.abs(gameState.ballY - batsmanY);
 
         if (timingDiff < 16) {
-            processBattingContact(true); // Perfect timing -> boundary
+            processBattingContact(true);
         } else if (timingDiff < 30) {
-            processBattingContact(false); // Good timing -> 1-2 runs
+            processBattingContact(false);
         } else if (timingDiff < 40) {
             document.getElementById('comm-text').innerText = "Defended safely (0)";
             gameState.status = 'IDLE';
@@ -308,6 +395,7 @@
 
         document.getElementById('score-val').innerText = gameState.score;
         document.getElementById('wickets-val').innerText = gameState.wickets;
+        sendMyScore();
     }
 
     function processBattingContact(isPerfect) {
@@ -315,33 +403,29 @@
         let targetY = 10;
         let runs = 1;
 
-        // Direction mapping with explicit targets *beyond* or *on* the boundary oval
         if (gameState.shotDirection === 1) {
-            targetX = 15;   // Crosses left boundary
+            targetX = 15;   
             targetY = 135;
             runs = isPerfect ? 4 : 1;
         } else if (gameState.shotDirection === 3) {
-            targetX = 265;  // Crosses right boundary
+            targetX = 265;  
             targetY = 135;
             runs = isPerfect ? 4 : 1;
         } else if (gameState.shotDirection === 4 || gameState.shotDirection === 6) {
             targetX = 140 + (Math.random() * 60 - 30);
-            targetY = -10;  // Flies cleanly past the top boundary rope!
+            targetY = -10;  
             runs = isPerfect ? 6 : 2;
         } else {
             targetX = 140;
-            targetY = 12;   // Straight boundary hit
+            targetY = 12;   
             runs = isPerfect ? 4 : 2;
         }
 
-        // Caught out check for lofted shots
         let caughtOut = false;
         if (isPerfect && (gameState.shotDirection === 4 || gameState.shotDirection === 6)) {
             fielders.forEach(f => {
                 let distToFielder = Math.hypot(f.x - targetX, f.y - targetY);
-                if (distToFielder < 28) {
-                    caughtOut = true;
-                }
+                if (distToFielder < 28) caughtOut = true;
             });
         }
 
@@ -358,13 +442,12 @@
             let dist = Math.sqrt(dx*dx + dy*dy);
             gameState.ballSpeedX = (dx / dist) * 4.5;
             gameState.ballSpeedY = (dy / dist) * 4.5;
+            sendMyScore();
             queueNextBall();
             return;
         }
 
         gameState.score += runs;
-        
-        // Trigger popup text
         gameState.popupText = `+${runs}`;
         gameState.popupTimer = 40;
 
@@ -391,7 +474,7 @@
         if (runs === 6) {
             document.getElementById('comm-text').innerText = "MAXIMUM! OVER THE ROPE! 🚀";
         } else if (runs === 4) {
-            document.getElementById('comm-text').innerText = "FOUR RUNS! Boundary! 💥";
+            document.getElementById('comm-text').innerText = "FOUR BOUNDARY! 💥";
         } else {
             document.getElementById('comm-text').innerText = `Good shot! +${runs} run`;
         }
@@ -414,23 +497,50 @@
         }
     });
 
-    function endGame() {
+    function endInnings() {
+        sendMyScore();
+        playBeep(200, 'sawtooth', 0.5);
+
+        // Sort leaderboard items by score descending
+        const sortedPlayers = Object.keys(leaderboardData).map(name => ({
+            name: name,
+            score: leaderboardData[name].score || 0,
+            wickets: leaderboardData[name].wickets || 0
+        })).sort((a, b) => b.score - a.score);
+
+        let leaderboardHTML = `
+            <h3 style="margin:0 0 4px 0;">🏆 TOURNAMENT LEADERBOARD</h3>
+            <table class="leaderboard-table">
+                <tr><th>Rank</th><th>Player</th><th>Score</th></tr>
+        `;
+
+        sortedPlayers.forEach((p, idx) => {
+            let rankIcon = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `${idx+1}.`;
+            let isMe = p.name === playerName ? 'style="color:#047857; font-weight:bold;"' : '';
+            leaderboardHTML += `
+                <tr ${isMe}>
+                    <td>${rankIcon}</td>
+                    <td>${p.name}</td>
+                    <td><b>${p.score}/${p.wickets}</b></td>
+                </tr>
+            `;
+        });
+
+        leaderboardHTML += `
+            </table>
+            <button class="key" style="background:#2b3822; color:#fff; width:100%; padding:8px; font-size:12px; margin-top:8px;" onclick="startMyInnings()">PLAY AGAIN</button>
+        `;
+
         const overlay = document.getElementById('overlay');
         overlay.classList.remove('hidden');
-        overlay.innerHTML = `
-            <h3 style="margin:0 0 5px 0;">INNINGS OVER!</h3>
-            <p style="font-size:12px; margin:5px 0;"><b>${playerName}</b></p>
-            <p style="font-size:15px; color:#b91c1c; font-weight:bold; margin:8px 0;">Final Score: ${gameState.score} / ${gameState.wickets}</p>
-            <button class="key" style="background:#2b3822; color:#fff; width:100%; padding:10px; font-size:14px; margin-top:10px;" onclick="startGame()">PLAY AGAIN</button>
-        `;
-        playBeep(200, 'sawtooth', 0.5);
+        overlay.innerHTML = leaderboardHTML;
     }
 
     function gameLoop() {
         ctx.fillStyle = '#8b9d71';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        // Oval Boundary Line (Classic Oval Outfield)
+        // Boundary line oval
         ctx.strokeStyle = '#2b3822';
         ctx.lineWidth = 2.5;
         ctx.beginPath();
@@ -443,7 +553,6 @@
         ctx.strokeStyle = '#2b3822';
         ctx.strokeRect(120, 20, 40, 210);
 
-        // Crease & Stumps
         ctx.beginPath();
         ctx.moveTo(120, 215);
         ctx.lineTo(160, 215);
@@ -454,7 +563,6 @@
         ctx.fillRect(137, 225, 3, 10);
         ctx.fillRect(141, 225, 3, 10);
 
-        // Fielders Patrol
         fielders.forEach(f => {
             f.x += f.dir * 0.4;
             if (Math.abs(f.x - f.baseX) > 20) f.dir *= -1;
@@ -464,7 +572,6 @@
             ctx.fillRect(f.x - 2, f.y - 3, 10, 3);
         });
 
-        // Ball Mechanics
         if (gameState.status === 'BOWLING') {
             gameState.ballY += gameState.ballSpeedY;
             if (gameState.ballY > 235) {
@@ -473,6 +580,7 @@
                 document.getElementById('wickets-val').innerText = gameState.wickets;
                 document.getElementById('comm-text').innerText = "BOWLED! Missed completely!";
                 playBeep(120, 'sawtooth', 0.4);
+                sendMyScore();
                 queueNextBall();
             }
         } else if (gameState.status === 'FLYING') {
@@ -486,11 +594,9 @@
             }
         }
 
-        // Draw Ball
         ctx.fillStyle = '#111';
         ctx.fillRect(gameState.ballX - 3, gameState.ballY - 3, 6, 6);
 
-        // Floating Score Popup Effect over pitch
         if (gameState.popupTimer > 0) {
             ctx.fillStyle = '#111';
             ctx.font = 'bold 16px Courier New';
@@ -498,7 +604,6 @@
             gameState.popupTimer--;
         }
 
-        // Draw Batsman
         ctx.fillStyle = '#111';
         ctx.fillRect(130, 205, 12, 18);
         ctx.fillRect(132, 200, 8, 5);
