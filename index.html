@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Nokia Retro Cricket 2006 - Family Tournament</title>
+    <title>Nokia Retro Cricket 2006 - Host Controlled Tournament</title>
     <!-- PeerJS for 100% Free, Zero-Account P2P Real-Time Room Networking -->
     <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
     <style>
@@ -119,7 +119,7 @@
             justify-content: center;
             z-index: 10;
             color: #111;
-            padding: 15px;
+            padding: 12px;
             box-sizing: border-box;
             overflow-y: auto;
         }
@@ -127,24 +127,24 @@
         input {
             background: #8b9d71;
             border: 2px solid #2b3822;
-            padding: 7px;
+            padding: 6px;
             font-family: inherit;
             font-weight: bold;
             text-align: center;
             color: #111;
-            margin-bottom: 8px;
+            margin-bottom: 6px;
             width: 85%;
             border-radius: 4px;
         }
         .leaderboard-table {
             width: 100%;
-            font-size: 11px;
+            font-size: 10px;
             border-collapse: collapse;
-            margin-top: 5px;
+            margin-top: 4px;
             text-align: left;
         }
         .leaderboard-table th, .leaderboard-table td {
-            padding: 3px;
+            padding: 2px;
             border-bottom: 1px dashed #2b3822;
         }
     </style>
@@ -156,17 +156,17 @@
     
     <div class="lcd-screen">
         
-        <!-- ROOM SETUP SCREEN WITH SHORT CODES -->
+        <!-- ROOM SETUP SCREEN -->
         <div id="overlay" class="screen-overlay">
-            <h3 style="margin:0 0 4px 0;">🏏 RETRO TOURNAMENT</h3>
-            <p style="font-size:10px; margin:2px 0 6px 0; text-align:center;">
+            <h3 style="margin:0 0 3px 0;">🏏 RETRO TOURNAMENT</h3>
+            <p style="font-size:10px; margin:2px 0 5px 0; text-align:center;">
                 [1] Left | [3] Right | [4,6] Lofted
             </p>
             <input type="text" id="player-name" placeholder="Your Name (e.g. Sasi)" maxlength="12">
             <input type="text" id="custom-room-input" placeholder="Room Code (e.g. DIWALI)" maxlength="10">
-            <div style="display: flex; gap: 5px; width: 85%; margin-bottom: 5px;">
-                <button class="key" style="background:#2b3822; color:#fff; flex:1; padding:8px; font-size:11px;" onclick="hostRoom()">HOST</button>
-                <button class="key" style="background:#047857; color:#fff; flex:1; padding:8px; font-size:11px;" onclick="joinRoom()">JOIN</button>
+            <div style="display: flex; gap: 5px; width: 85%; margin-bottom: 4px;">
+                <button class="key" style="background:#2b3822; color:#fff; flex:1; padding:7px; font-size:11px;" onclick="hostRoom()">HOST</button>
+                <button class="key" style="background:#047857; color:#fff; flex:1; padding:7px; font-size:11px;" onclick="joinRoom()">JOIN</button>
             </div>
             <div id="status-msg" style="font-size:10px; margin-top:2px; font-weight:bold; color:#111;"></div>
         </div>
@@ -200,8 +200,7 @@
     let peer, conn;
     let isHost = false;
     let connections = {}; 
-    let leaderboardData = {}; 
-    
+    let leaderboardData = {}; // { name: { score, wickets, status: 'PLAYING'/'FINISHED' } }
     let playerName = "Player";
 
     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -248,7 +247,7 @@
         { x: 180, y: 32, baseX: 180, baseY: 32, dir: -1 }
     ];
 
-    // HOST ROOM WITH SHORT CODE
+    // HOST ROOM
     function hostRoom() {
         playerName = document.getElementById('player-name').value.trim() || "Host";
         let roomCode = document.getElementById('custom-room-input').value.trim().toUpperCase();
@@ -259,17 +258,15 @@
         }
 
         document.getElementById('status-msg').innerText = "Creating room...";
-
         peer = new Peer(roomCode); 
 
         peer.on('open', (id) => {
             isHost = true;
-            leaderboardData[playerName] = { score: 0, wickets: 0 };
+            leaderboardData[playerName] = { score: 0, wickets: 0, status: 'PLAYING' };
             document.getElementById('overlay').innerHTML = `
-                <h3 style="margin:0 0 4px 0;">🏏 ROOM ACTIVE</h3>
-                <p style="font-size:11px; margin:2px 0;">Code: <b style="color:#047857; font-size:14px;">${id}</b></p>
-                <p style="font-size:10px; color:#333; margin:2px 0 8px 0;">Tell family to join using: <b>${id}</b></p>
-                <button class="key" style="background:#2b3822; color:#fff; width:100%; padding:9px; font-size:12px;" onclick="startMyInnings()">START MY INNINGS</button>
+                <h3 style="margin:0 0 3px 0;">🏏 HOST CONTROL</h3>
+                <p style="font-size:10px; margin:2px 0;">Code: <b style="color:#047857; font-size:13px;">${id}</b></p>
+                <button class="key" style="background:#2b3822; color:#fff; width:100%; padding:8px; font-size:11px; margin-top:5px;" onclick="startMyInnings()">START MY INNINGS</button>
             `;
         });
 
@@ -287,14 +284,17 @@
             
             incomingConn.on('data', (data) => {
                 if (data.type === 'SUBMIT_SCORE') {
-                    leaderboardData[data.name] = { score: data.score, wickets: data.wickets };
-                    broadcastLeaderboard();
+                    leaderboardData[data.name] = { score: data.score, wickets: data.wickets, status: data.status };
+                    // If host is waiting, update host's control panel view
+                    if (gameState.status === 'WAITING_HOST' && isHost) {
+                        showHostWaitingScreen();
+                    }
                 }
             });
         });
     }
 
-    // JOIN ROOM WITH SHORT CODE
+    // JOIN ROOM
     function joinRoom() {
         playerName = document.getElementById('player-name').value.trim() || "Player";
         let targetRoomCode = document.getElementById('custom-room-input').value.trim().toUpperCase();
@@ -315,8 +315,10 @@
             });
 
             conn.on('data', (data) => {
-                if (data.type === 'UPDATE_LEADERBOARD') {
+                if (data.type === 'SHOW_LEADERBOARD') {
+                    // Host approved leaderboard display for everyone
                     leaderboardData = data.leaderboard;
+                    renderLeaderboardScreen();
                 }
             });
 
@@ -327,12 +329,11 @@
         });
     }
 
-    function broadcastLeaderboard() {
-        if (!isHost) return;
-        const packet = { type: 'UPDATE_LEADERBOARD', leaderboard: leaderboardData };
-        Object.values(connections).forEach(c => {
-            if (c.open) c.send(packet);
-        });
+    function sendMyScore(statusVal) {
+        leaderboardData[playerName] = { score: gameState.score, wickets: gameState.wickets, status: statusVal };
+        if (!isHost && conn && conn.open) {
+            conn.send({ type: 'SUBMIT_SCORE', name: playerName, score: gameState.score, wickets: gameState.wickets, status: statusVal });
+        }
     }
 
     function startMyInnings() {
@@ -360,17 +361,9 @@
         document.getElementById('wickets-val').innerText = '0';
         document.getElementById('ball-val').innerText = '1';
         
+        sendMyScore('PLAYING');
         nextDelivery();
         playBeep(600, 'square', 0.2);
-    }
-
-    function sendMyScore() {
-        leaderboardData[playerName] = { score: gameState.score, wickets: gameState.wickets };
-        if (isHost) {
-            broadcastLeaderboard();
-        } else if (conn && conn.open) {
-            conn.send({ type: 'SUBMIT_SCORE', name: playerName, score: gameState.score, wickets: gameState.wickets });
-        }
     }
 
     function nextDelivery() {
@@ -417,7 +410,7 @@
 
         document.getElementById('score-val').innerText = gameState.score;
         document.getElementById('wickets-val').innerText = gameState.wickets;
-        sendMyScore();
+        sendMyScore('PLAYING');
     }
 
     function processBattingContact(isPerfect) {
@@ -464,7 +457,7 @@
             let dist = Math.sqrt(dx*dx + dy*dy);
             gameState.ballSpeedX = (dx / dist) * 4.5;
             gameState.ballSpeedY = (dy / dist) * 4.5;
-            sendMyScore();
+            sendMyScore('PLAYING');
             queueNextBall();
             return;
         }
@@ -520,17 +513,76 @@
     });
 
     function endInnings() {
-        sendMyScore();
+        gameState.status = 'WAITING_HOST';
+        sendMyScore('FINISHED');
         playBeep(200, 'sawtooth', 0.5);
 
+        if (isHost) {
+            showHostWaitingScreen();
+        } else {
+            showClientWaitingScreen();
+        }
+    }
+
+    function showClientWaitingScreen() {
+        const overlay = document.getElementById('overlay');
+        overlay.classList.remove('hidden');
+        overlay.innerHTML = `
+            <h3 style="margin:0 0 5px 0;">⏳ INNINGS OVER</h3>
+            <p style="font-size:11px; text-align:center; margin:10px 0;">Your Score: <b>${gameState.score}/${gameState.wickets}</b></p>
+            <p style="font-size:10px; color:#333; text-align:center; font-style:italic;">Waiting for Host to approve and reveal final tournament standings to everyone...</p>
+        `;
+    }
+
+    function showHostWaitingScreen() {
+        const overlay = document.getElementById('overlay');
+        overlay.classList.remove('hidden');
+
+        let statusListHTML = '';
+        Object.keys(leaderboardData).forEach(name => {
+            let p = leaderboardData[name];
+            let statusBadge = p.status === 'FINISHED' ? '✅ Finished' : '⏳ Playing...';
+            statusListHTML += `<tr><td>${name}</td><td><b>${p.score}/${p.wickets}</b></td><td>${statusBadge}</td></tr>`;
+        });
+
+        overlay.innerHTML = `
+            <h3 style="margin:0 0 4px 0;">🛡️ HOST DASHBOARD</h3>
+            <p style="font-size:9px; margin:0 0 4px 0;">Monitor players below. When ready, reveal results:</p>
+            <div style="max-height:160px; overflow-y:auto; width:100%;">
+                <table class="leaderboard-table">
+                    <tr><th>Player</th><th>Score</th><th>Status</th></tr>
+                    ${statusListHTML}
+                </table>
+            </div>
+            <button class="key" style="background:#047857; color:#fff; width:100%; padding:8px; font-size:11px; margin-top:8px;" onclick="hostApproveAndReveal()">📢 REVEAL LEADERBOARD TO ALL</button>
+        `;
+    }
+
+    function hostApproveAndReveal() {
+        if (!isHost) return;
+
+        // Broadcast final leaderboard to all connected clients
+        const packet = { type: 'SHOW_LEADERBOARD', leaderboard: leaderboardData };
+        Object.values(connections).forEach(c => {
+            if (c.open) c.send(packet);
+        });
+
+        // Show on host screen as well
+        renderLeaderboardScreen();
+    }
+
+    function renderLeaderboardScreen() {
         const sortedPlayers = Object.keys(leaderboardData).map(name => ({
             name: name,
             score: leaderboardData[name].score || 0,
             wickets: leaderboardData[name].wickets || 0
-        })).sort((a, b) => b.score - a.score);
+        })).sort((a, b) => {
+            if (b.score !== a.score) return b.score - a.score;
+            return a.wickets - b.wickets;
+        });
 
         let leaderboardHTML = `
-            <h3 style="margin:0 0 4px 0;">🏆 TOURNAMENT LEADERBOARD</h3>
+            <h3 style="margin:0 0 3px 0;">🏆 FINAL STANDINGS</h3>
             <table class="leaderboard-table">
                 <tr><th>Rank</th><th>Player</th><th>Score</th></tr>
         `;
@@ -549,7 +601,7 @@
 
         leaderboardHTML += `
             </table>
-            <button class="key" style="background:#2b3822; color:#fff; width:100%; padding:8px; font-size:12px; margin-top:8px;" onclick="startMyInnings()">PLAY AGAIN</button>
+            <button class="key" style="background:#2b3822; color:#fff; width:100%; padding:7px; font-size:11px; margin-top:6px;" onclick="startMyInnings()">PLAY AGAIN</button>
         `;
 
         const overlay = document.getElementById('overlay');
@@ -601,7 +653,7 @@
                 document.getElementById('wickets-val').innerText = gameState.wickets;
                 document.getElementById('comm-text').innerText = "BOWLED! Missed completely!";
                 playBeep(120, 'sawtooth', 0.4);
-                sendMyScore();
+                sendMyScore('PLAYING');
                 queueNextBall();
             }
         } else if (gameState.status === 'FLYING') {
