@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Nokia Retro Cricket 2006 - Family Tournament</title>
+    <title>Nokia Retro Cricket 2006 - Haptic Edition</title>
     <!-- MQTT.js via CDN for 100% reliable multi-network real-time room sync -->
     <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
     <style>
@@ -218,6 +218,13 @@
         osc.stop(audioCtx.currentTime + duration);
     }
 
+    // Haptic Vibration Helper
+    function vibratePhone(pattern) {
+        if ("vibrate" in navigator) {
+            navigator.vibrate(pattern);
+        }
+    }
+
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
 
@@ -226,7 +233,7 @@
         wickets: 0,
         ball: 1,
         maxBalls: 12, // 2 Overs = 12 Balls
-        status: 'IDLE', // 'IDLE', 'COUNTDOWN', 'BOWLING', 'FLYING'
+        status: 'IDLE', 
         ballX: 140,
         ballY: 25,
         targetX: 140,
@@ -437,7 +444,6 @@
         document.getElementById('ball-val').innerText = '1';
         sendMyScore('PLAYING');
 
-        // Run 3-2-1 Countdown Sequence
         runCountdown(3);
     }
 
@@ -446,6 +452,7 @@
             gameState.countdownText = `${count}`;
             document.getElementById('comm-text').innerText = `GET READY... ${count}`;
             playBeep(400, 'square', 0.15);
+            vibratePhone(30); // Gentle tap on countdown numbers
             setTimeout(() => {
                 runCountdown(count - 1);
             }, 1000);
@@ -453,6 +460,7 @@
             gameState.countdownText = 'PLAY!';
             document.getElementById('comm-text').innerText = `PLAY! 🏏`;
             playBeep(900, 'square', 0.3);
+            vibratePhone([50, 50, 50]); // Double tap on GO
             setTimeout(() => {
                 gameState.countdownText = '';
                 nextDelivery();
@@ -490,15 +498,19 @@
         } else if (timingDiff < 30) {
             processBattingContact(false);
         } else if (timingDiff < 40) {
+            // Defended safely
             document.getElementById('comm-text').innerText = "Defended safely (0)";
             gameState.status = 'IDLE';
             playBeep(400, 'sawtooth', 0.1);
+            vibratePhone(40); // Light tap when bat touches ball for defense
             queueNextBall();
         } else {
+            // Clean Bowled (Out!)
             gameState.wickets++;
-            document.getElementById('comm-text').innerText = "BOWLED! Timber rattled! ☝️";
+            document.getElementById('comm-text').innerText = "OUT! Timber rattled! ☝️";
             gameState.status = 'IDLE';
             playBeep(150, 'sawtooth', 0.4);
+            vibratePhone([150, 75, 150]); // Distinct heavy vibration when OUT
             queueNextBall();
         }
 
@@ -539,12 +551,14 @@
         }
 
         if (caughtOut) {
+            // Caught Out (Out!)
             gameState.wickets++;
             gameState.status = 'FLYING';
             gameState.targetX = targetX;
             gameState.targetY = targetY;
             document.getElementById('comm-text').innerText = "CAUGHT OUT near boundary! ☝️";
             playBeep(120, 'sawtooth', 0.5);
+            vibratePhone([150, 75, 150]); // Distinct heavy vibration when OUT
             
             let dx = targetX - gameState.ballX;
             let dy = targetY - gameState.ballY;
@@ -556,9 +570,17 @@
             return;
         }
 
+        // Successful Hit (Runs scored!)
         gameState.score += runs;
         gameState.popupText = `+${runs}`;
         gameState.popupTimer = 40;
+
+        // Satisfying haptic feedback when ball touches bat for a successful shot
+        if (runs === 6 || runs === 4) {
+            vibratePhone([60, 40, 80]); // Stronger buzz for boundaries
+        } else {
+            vibratePhone(50); // Crisp tap for 1-2 runs
+        }
 
         launchBallFlight(targetX, targetY, runs);
         if (runs === 6) {
@@ -576,7 +598,7 @@
         let dx = targetX - gameState.ballX;
         let dy = targetY - gameState.ballY;
         let dist = Math.sqrt(dx*dx + dy*dy);
-        
+
         gameState.ballSpeedX = (dx / dist) * 5;
         gameState.ballSpeedY = (dy / dist) * 5;
 
@@ -610,6 +632,7 @@
         gameState.status = 'WAITING_HOST';
         sendMyScore('FINISHED');
         playBeep(200, 'sawtooth', 0.5);
+        vibratePhone([100, 100, 100]); // End of innings vibration
 
         if (isHost) {
             showHostLobby();
@@ -722,6 +745,7 @@
                 document.getElementById('wickets-val').innerText = gameState.wickets;
                 document.getElementById('comm-text').innerText = "BOWLED! Missed completely!";
                 playBeep(120, 'sawtooth', 0.4);
+                vibratePhone([150, 75, 150]); // Distinct heavy vibration when OUT
                 sendMyScore('PLAYING');
                 queueNextBall();
             }
