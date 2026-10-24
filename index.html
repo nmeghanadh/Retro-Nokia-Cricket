@@ -315,13 +315,13 @@
         countdownText: ''
     };
 
-    // Widely scattered fielders leaving open gaps between them
+    // Fielders safely positioned off the pitch mat, leaving wide gaps
     let fielders = [
-        { x: 50, y: 85, baseX: 50, baseY: 85, dir: 1 },
-        { x: 230, y: 85, baseX: 230, baseY: 85, dir: -1 },
-        { x: 100, y: 40, baseX: 100, baseY: 40, dir: 1 },
-        { x: 180, y: 40, baseX: 180, baseY: 40, dir: -1 },
-        { x: 140, y: 150, baseX: 140, baseY: 150, dir: 1 }
+        { x: 50, y: 85, baseX: 50, baseY: 85, dir: 1 },     // Deep Left
+        { x: 230, y: 85, baseX: 230, baseY: 85, dir: -1 },   // Deep Right
+        { x: 90, y: 50, baseX: 90, baseY: 50, dir: 1 },      // Off-side
+        { x: 190, y: 50, baseX: 190, baseY: 50, dir: -1 },   // Leg-side
+        { x: 95, y: 150, baseX: 95, baseY: 150, dir: 1 }     // Side ring fielder (off the mat)
     ];
 
     function connectMQTT(callback) {
@@ -650,7 +650,6 @@
         let targetY = 10;
         let runs = 1;
 
-        // Scattered landing spots across gaps
         if (gameState.shotDirection === 1) {
             targetX = 35;   
             targetY = 110;
@@ -660,7 +659,6 @@
             targetY = 110;
             runs = isPerfect ? 4 : 1;
         } else if (gameState.shotDirection === 4 || gameState.shotDirection === 6) {
-            // Scatter lofted shots across wide gaps (left, right, or deep corners)
             let loftZones = [
                 {x: 60, y: 50},   // Gap in deep left
                 {x: 220, y: 50},  // Gap in deep right
@@ -676,12 +674,12 @@
             runs = isPerfect ? 4 : 2;
         }
 
-        // CAUGHT OUT CHECK: Only on lofted shots (4 or 6) if hit straight into a fielder's zone
+        // CAUGHT OUT CHECK: Only apply to lofted shots (4 or 6)
         let caughtOut = false;
         if (gameState.shotDirection === 4 || gameState.shotDirection === 6) {
             fielders.forEach(f => {
                 let distToFielder = Math.hypot(f.x - targetX, f.y - targetY);
-                if (distToFielder < 24) {
+                if (distToFielder < 26) {
                     caughtOut = true;
                 }
             });
